@@ -3,14 +3,30 @@
 from __future__ import annotations
 
 
+class SheetMissingError(Exception):
+    """A required sheet is absent from the workbook entirely.
+
+    Distinct from ColumnResolutionError (sheet present, columns missing)
+    so Phase 3's service.py can map each to a different, readable
+    PipelineError code instead of both surfacing as "missing column(s):
+    <sheet not found in workbook>".
+    """
+
+    def __init__(self, sheet_name: str) -> None:
+        self.sheet_name = sheet_name
+        super().__init__(f"The workbook has no '{sheet_name}' sheet.")
+
+
 class ColumnResolutionError(Exception):
-    """A sheet is missing one or more required columns."""
+    """A sheet is present but missing one or more required columns."""
 
     def __init__(self, sheet_name: str, missing_headers: list[str]) -> None:
         self.sheet_name = sheet_name
         self.missing_headers = missing_headers
         joined = ", ".join(missing_headers)
-        super().__init__(f"Sheet '{sheet_name}' is missing required column(s): {joined}")
+        super().__init__(
+            f"Sheet '{sheet_name}' is missing required column(s): {joined}"
+        )
 
 
 CUSTOMER_FIELDS: dict[str, str] = {
@@ -61,7 +77,9 @@ def resolve_columns(
     just the first, so a mismatched workbook only needs one round trip to
     diagnose.
     """
-    header_index = {str(cell).strip(): i for i, cell in enumerate(header_row) if cell is not None}
+    header_index = {
+        str(cell).strip(): i for i, cell in enumerate(header_row) if cell is not None
+    }
     resolved: dict[str, int] = {}
     missing: list[str] = []
     for field_name, header_text in expected.items():
