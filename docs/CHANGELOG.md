@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-31
+
+### Added
+
+- `ai/guard.py`: `ids_are_contained` -- an LLM explanation naming a
+  record ID outside its own batch is rejected outright.
+- `ai/roles/exception_explainer.py`: `explain_rules`, batched by rule
+  code (one explanation per distinct `rule_code`, not per row -- the 14
+  rules are a fixed catalogue). Same three-rung fallback as
+  `summary_narrator`; `RULE_METADATA` is the deterministic third rung,
+  in the same words `docs/RULES.md`'s own "Why" prose already
+  establishes. `auto_fixable` hardcoded `False` on every
+  `RuleExplanation`, every rung, no exceptions. Cached per
+  `(rule_code, category, sorted affected IDs)`.
+- `models.py`: `RunRuleExplanation`, one row per `(run, rule_code)`.
+- `service.py`: `validate` stage now also calls `explain_rules` and
+  persists the results.
+- `api/exceptions.py`, `api/schemas.py`: `ExceptionOut` gains
+  `cause`/`impact`/`suggested_fix`/`owner`/`auto_fixable`/
+  `explanation_source`, joined from `RunRuleExplanation` by `rule_code`.
+- 8 new tests (154 -> 162): `tests/ai/test_exception_explainer.py`
+  (every fired rule explained, `auto_fixable` always `False`, fallback
+  reproduces `RULE_METADATA`, no invented IDs against real Ollama) and
+  `ids_are_contained` cases added to `tests/ai/test_guard.py`.
+
 ## [0.7.0] - 2026-08-31
 
 ### Added

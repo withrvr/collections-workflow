@@ -91,6 +91,7 @@ def test_successful_run_emits_events_for_every_stage_in_order(session: Session) 
         "load",
         "validate",
         "validate",
+        "validate",
         "calculate",
         "calculate",
         "control",

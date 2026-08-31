@@ -136,6 +136,29 @@ class RunException(SQLModel, table=True):
     run: Run | None = Relationship(back_populates="exceptions")
 
 
+class RunRuleExplanation(SQLModel, table=True):
+    """One explanation per distinct rule_code that fired in a run --
+    shared by every `RunException` row carrying that code (Phase 7:
+    "batched by rule code", not per row). See
+    `ai/roles/exception_explainer.py`."""
+
+    __tablename__ = "collections_run_rule_explanation"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    run_id: uuid.UUID = Field(
+        foreign_key="collections_run.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    rule_code: str = Field(max_length=8, index=True)
+    cause: str
+    impact: str
+    suggested_fix: str
+    owner: str = Field(max_length=64)
+    auto_fixable: bool = Field(
+        default=False
+    )  # always False -- see exception_explainer.py
+    source: str = Field(max_length=16)  # "ollama" | "cloud" | "fallback"
+
+
 class RunInvoicePosition(SQLModel, table=True):
     """One persisted `calculate.overdue.InvoicePosition`, tied to its run.
 

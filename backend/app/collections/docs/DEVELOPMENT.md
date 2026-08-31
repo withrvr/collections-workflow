@@ -3,7 +3,7 @@
 Owns: local setup, commands, git workflow, commit format, testing,
 release process. Does not own: business logic (see `README.md`).
 
-Status: **Phase 6 complete.**
+Status: **Phase 7 complete.**
 
 ## Local setup
 
@@ -21,7 +21,7 @@ from Phase 3: `compose.override.yml`'s dev `backend` command now runs
 
 ```
 cd backend
-uv run pytest app/collections/tests -v                       # full test suite (154 tests, ~90s incl. real Ollama calls)
+uv run pytest app/collections/tests -v                       # full test suite (162 tests, ~60s incl. real Ollama calls)
 uv run pytest app/collections/tests/validate -v               # exception rule tests only
 uv run pytest app/collections/tests/persistence -v             # run lifecycle / error contract
 uv run pytest app/collections/tests/api -v                     # API tests (TestClient, in-memory SQLite)
@@ -71,8 +71,13 @@ zero-invoice edge case, row-rate/distinct-rate divergence) and
 `test_guard.py` (numeric containment, including the date-hyphen edge
 case), `test_provider.py` and `test_summary_narrator.py` (real,
 unmocked calls to local Ollama where reachable — see "Commands" above
-for the skip behavior when it isn't), and `test_context.py`. See
-MASTER_PLAN.md section 10 for the full test layer breakdown.
+for the skip behavior when it isn't), and `test_context.py`. Phase 7
+added `test_exception_explainer.py` (every fired rule gets an
+explanation, `auto_fixable` always `False`, the fallback rung reproduces
+`RULE_METADATA` verbatim, and — against real Ollama — no explanation
+ever names a record ID outside its own batch) and extended
+`test_guard.py` with `ids_are_contained` cases. See MASTER_PLAN.md
+section 10 for the full test layer breakdown.
 
 ## Release process
 
