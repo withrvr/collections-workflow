@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-31
+
+### Added
+
+- `api/schemas.py`: Pydantic response models (`RunOut`, `RunEventOut`,
+  `ExceptionOut`, `InvoicePositionOut`, `RegionBreakdownOut`,
+  `SummaryOut`), separate from `models.py`'s SQLModel tables.
+- `api/deps.py`: `get_run_or_404`, shared by every report endpoint.
+- `api/runs.py`: `POST /collections/runs/` (upload a workbook, run the
+  pipeline synchronously, always `200` with a `Run` — never `500` on a
+  bad file), `GET /collections/runs/` (list), `GET /collections/runs/{id}`.
+- `api/overdue.py`: `GET /collections/overdue/?run_id=`.
+- `api/exceptions.py`: `GET /collections/exceptions/?run_id=&rule_code=&severity=`.
+- `api/regions.py`: `GET /collections/regions/?run_id=`, and
+  `region_breakdown()` shared with `api/summary.py`.
+- `api/summary.py`: `GET /collections/summary/?run_id=` — numeric
+  summary plus region breakdown; Phase 5 adds the control gate on top.
+- `api/runlog.py`: `GET /collections/run-log/{run_id}/events`.
+- 10 new tests (122 -> 132): `tests/api/test_api.py`, the full flow a
+  reviewer would drive from `/docs`, against dataset A, plus a broken
+  upload asserting `200`/`FAILED` rather than `500`.
+
 ## [0.4.0] - 2026-08-31
 
 ### Added

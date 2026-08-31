@@ -5,7 +5,7 @@ service built on `fastapi/full-stack-fastapi-template`. This file is the
 single source of truth for what the service does and how to run it; see
 `docs/` for internals (owned per file, see below).
 
-Status: **Phase 3 (Persistence and run events) complete**. This README
+Status: **Phase 4 (API) complete**. This README
 will be filled in as each phase lands; see `../../../docs/CHANGELOG.md`
 for what has shipped so far.
 
@@ -21,8 +21,10 @@ outstanding/overdue/ageing/region figures); Phase 2 added the 14-rule
 exception catalogue (`docs/RULES.md`) that explains every exclusion;
 Phase 3 added a real run lifecycle — every uploaded workbook becomes a
 persisted `Run`, `COMPLETED` or `FAILED`, with a `run_events` timeline a
-non-technical user can read and no raw traceback ever reaching them. No
-API yet — see `docs/CHANGELOG.md` for what each phase adds.
+non-technical user can read and no raw traceback ever reaching them.
+Phase 4 put all of that behind a real API (`docs/API.md`) — upload a
+file at `POST /collections/runs/` and drive the whole flow from
+`/docs`. See `docs/CHANGELOG.md` for what each phase adds.
 
 ## How to run
 
@@ -34,12 +36,13 @@ uv run pytest app/collections/tests -v
 The script loads `fixtures/dataset_a_original.xlsx` and prints the overdue
 count, total outstanding, and region breakdown.
 
-To exercise the persisted pipeline end to end against the real Postgres
-(not the in-memory SQLite the test suite uses), bring up the Docker
-stack (`docker compose watch` from the repo root — the dev backend
-container runs `alembic upgrade head` automatically before starting) and
-call `app.collections.service.execute_run` with a `Session` bound to
-`app.core.db.engine`. Phase 4 wires this up behind `POST /run`.
+To exercise the full pipeline end to end against the real Postgres (not
+the in-memory SQLite the test suite uses), bring up the Docker stack
+(`docker compose watch` from the repo root — the dev backend container
+runs `alembic upgrade head` automatically before starting) and open
+http://localhost:8000/docs. `POST /collections/runs/` with a workbook
+file, then drive `GET /collections/overdue`, `/exceptions`, `/regions`,
+`/summary`, `/run-log/{id}/events` from there — see `docs/API.md`.
 
 ## Business rules
 
@@ -84,7 +87,7 @@ guard, and the agent-side build tooling (ponytail, caveman, anydoc)._
 
 ## Validation performed
 
-- **122 tests** (`uv run pytest app/collections/tests -v`): loader/resolver
+- **132 tests** (`uv run pytest app/collections/tests -v`): loader/resolver
   tests, boundary tests on the calculators, a positive and a negative case
   per exception rule against hand-built records, and the tests below.
 - **Rule coverage test** (`tests/validate/test_coverage.py`): asserts every
@@ -120,6 +123,11 @@ guard, and the agent-side build tooling (ponytail, caveman, anydoc)._
   run is `FAILED` with a specific `error_code` and a plain-English
   `error_message` — and assert the literal strings `"Traceback"`/`"Error"`
   never appear in it, not just that *some* message exists.
+- **API tests** (`tests/api/test_api.py`, Phase 4): the whole flow a
+  reviewer would drive from `/docs` — upload, list, detail, overdue,
+  exceptions (with rule/severity filters), regions, summary, run-log —
+  against dataset A, plus a broken-upload case asserting `200` (not
+  `500`) with a `FAILED` run in the body.
 
 ## Owning-doc map
 

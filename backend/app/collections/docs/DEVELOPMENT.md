@@ -3,7 +3,7 @@
 Owns: local setup, commands, git workflow, commit format, testing,
 release process. Does not own: business logic (see `README.md`).
 
-Status: **Phase 3 complete.**
+Status: **Phase 4 complete.**
 
 ## Local setup
 
@@ -21,9 +21,10 @@ from Phase 3: `compose.override.yml`'s dev `backend` command now runs
 
 ```
 cd backend
-uv run pytest app/collections/tests -v                       # full test suite (122 tests)
+uv run pytest app/collections/tests -v                       # full test suite (132 tests)
 uv run pytest app/collections/tests/validate -v               # exception rule tests only
 uv run pytest app/collections/tests/persistence -v             # run lifecycle / error contract
+uv run pytest app/collections/tests/api -v                     # API tests (TestClient, in-memory SQLite)
 uv run python -m app.collections.scripts.reference_summary   # reference numbers against dataset A
 uv run alembic upgrade head                                   # apply migrations (Postgres only)
 uv run alembic check                                          # confirm models.py matches migrations
