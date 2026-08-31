@@ -23,6 +23,7 @@ RULE_REGISTRY: dict[str, RuleFn] = {
     "E011": rules.check_e011_cancelled_invoice,
     "E012": rules.check_e012_credit_note_invoice,
     "E013": rules.check_e013_duplicate_source_system_ref,
+    "E006": rules.check_e006_invalid_gstin_format,
 }
 
 

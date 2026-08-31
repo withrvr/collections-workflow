@@ -8,12 +8,41 @@ need the date. Full catalogue with rationale: docs/RULES.md.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 
 from app.collections.contracts import CanonicalDataset, CanonicalInvoice, ExceptionRow
+
+# 2-digit state code, 10-char PAN, entity code digit, literal Z, checksum char.
+# Format-only -- no checksum validation. A deliberate, documented limitation
+# (see README.md "weakest part" discussion), not an oversight.
+GSTIN_PATTERN = re.compile(r"^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z0-9]$")
+
+# ---------------------------------------------------------------------------
+# Customer-only rules
+# ---------------------------------------------------------------------------
+
+
+def check_e006_invalid_gstin_format(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    for customer in dataset.customers:
+        if customer.gstin is not None and not GSTIN_PATTERN.match(customer.gstin):
+            yield ExceptionRow(
+                rule_code="E006",
+                category="Invalid GSTIN format",
+                message=(
+                    f"Customer {customer.customer_id} has a GSTIN that does not match "
+                    f"the expected 15-character format: '{customer.gstin}'."
+                ),
+                severity="warning",
+                customer_id=customer.customer_id,
+                detail={"gstin": customer.gstin},
+            )
+
 
 # ---------------------------------------------------------------------------
 # Invoice-only rules
