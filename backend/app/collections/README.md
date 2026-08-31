@@ -5,7 +5,7 @@ service built on `fastapi/full-stack-fastapi-template`. This file is the
 single source of truth for what the service does and how to run it; see
 `docs/` for internals (owned per file, see below).
 
-Status: **Phase 2 (Validation and exceptions) complete**. This README
+Status: **Phase 3 (Persistence and run events) complete**. This README
 will be filled in as each phase lands; see `../../../docs/CHANGELOG.md`
 for what has shipped so far.
 
@@ -18,9 +18,11 @@ quality or business-rule issue it finds along the way rather than
 silently dropping the affected row. Phase 1 built the pure calculation
 core (loading the workbook into typed records, computing
 outstanding/overdue/ageing/region figures); Phase 2 added the 14-rule
-exception catalogue (`docs/RULES.md`) that explains every exclusion. No
-API or database persistence yet — see `docs/CHANGELOG.md` for what each
-phase adds.
+exception catalogue (`docs/RULES.md`) that explains every exclusion;
+Phase 3 added a real run lifecycle — every uploaded workbook becomes a
+persisted `Run`, `COMPLETED` or `FAILED`, with a `run_events` timeline a
+non-technical user can read and no raw traceback ever reaching them. No
+API yet — see `docs/CHANGELOG.md` for what each phase adds.
 
 ## How to run
 
@@ -31,6 +33,13 @@ uv run pytest app/collections/tests -v
 ```
 The script loads `fixtures/dataset_a_original.xlsx` and prints the overdue
 count, total outstanding, and region breakdown.
+
+To exercise the persisted pipeline end to end against the real Postgres
+(not the in-memory SQLite the test suite uses), bring up the Docker
+stack (`docker compose watch` from the repo root — the dev backend
+container runs `alembic upgrade head` automatically before starting) and
+call `app.collections.service.execute_run` with a `Session` bound to
+`app.core.db.engine`. Phase 4 wires this up behind `POST /run`.
 
 ## Business rules
 
@@ -75,7 +84,7 @@ guard, and the agent-side build tooling (ponytail, caveman, anydoc)._
 
 ## Validation performed
 
-- **107 tests** (`uv run pytest app/collections/tests -v`): loader/resolver
+- **122 tests** (`uv run pytest app/collections/tests -v`): loader/resolver
   tests, boundary tests on the calculators, a positive and a negative case
   per exception rule against hand-built records, and the tests below.
 - **Rule coverage test** (`tests/validate/test_coverage.py`): asserts every
@@ -90,15 +99,27 @@ guard, and the agent-side build tooling (ponytail, caveman, anydoc)._
   unapplied payment traceable to an exception row. These are
   internal-consistency checks — verifying the calculator's own arithmetic
   never creates or destroys a rupee — not an independently-derived second
-  method; that's the SQL crosscheck deferred to Phase 3+, once persistence
-  exists to recompute from. Verifying the pandas-free result with a second
-  method there will be the most convincing possible answer to "what
-  validation did you perform."
+  method.
 - **Exact-ID assertions throughout**, not just "fires at least once":
   every rule test and the reference-number regression test assert the
   precise set of invoice/payment/customer IDs a rule or calculation
   should produce, so a rule silently over- or under-firing is caught, not
   just a rule going fully silent.
+- **SQL crosscheck** (`tests/persistence/test_sql_crosscheck.py`, Phase 3):
+  the independently-derived second method the reconciliation tests above
+  deliberately weren't. Runs `execute_run` against dataset A, then
+  aggregates the persisted `RunInvoicePosition` rows straight out of the
+  database with a SQL `SUM`/`GROUP BY` — a genuinely different code path
+  from `scripts/reference_summary.py`'s in-memory Python loop — and
+  checks it against the same reference numbers (15 overdue, ₹12,02,000,
+  West heaviest). Agreement between the two is real evidence the
+  persistence layer isn't silently dropping or double-counting a row.
+- **Error-contract tests** (`tests/persistence/test_service.py`, Phase 3):
+  five deliberately broken workbooks (missing sheet, missing column,
+  corrupt/non-xlsx file, an unparseable cell) each assert the resulting
+  run is `FAILED` with a specific `error_code` and a plain-English
+  `error_message` — and assert the literal strings `"Traceback"`/`"Error"`
+  never appear in it, not just that *some* message exists.
 
 ## Owning-doc map
 

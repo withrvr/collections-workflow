@@ -25,7 +25,7 @@ services:
       - --api.insecure=true
   db:
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   adminer:
     ports:
@@ -39,10 +39,9 @@ services:
       dockerfile: backend/Dockerfile
     # command: sleep infinity  # Infinite loop to keep container alive doing nothing
     command:
-      - fastapi
-      - dev
-      - --host
-      - "0.0.0.0"
+      - sh
+      - -c
+      - "alembic upgrade head && fastapi dev --host 0.0.0.0"
     develop:
       watch:
         - path: ./backend

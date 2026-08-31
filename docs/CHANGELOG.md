@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-31
+
+### Added
+
+- `errors.py`: `PipelineError`, the typed error contract every
+  user-facing run failure maps to (`code`, `stage`, `user_message`,
+  `detail`) — never a raw traceback.
+- `models.py`: SQLModel tables `Run`, `RunEvent`, `RunException`,
+  `RunInvoicePosition` (prefixed `collections_*`). `status`/`stage`/
+  `level` are plain indexed strings, not native Postgres enums, so a
+  later phase can add a value without a migration.
+- `observability/events.py`: `emit()`, writing the `run_events` timeline;
+  `to_json_detail()` converts `Decimal`/`date` values for the JSON
+  column. `observability/logging.py`: the separate developer-facing
+  channel (stdlib `logging` for now, Phase 12 upgrades to structlog).
+- `service.py`: `execute_run`, the orchestrator — load, validate,
+  calculate, persist, each stage emitting `run_events`. Always returns a
+  `Run`, `COMPLETED` or `FAILED`, never raises.
+- `ingest/resolver.py`: `SheetMissingError`, distinct from
+  `ColumnResolutionError` so a wholly absent sheet reads differently
+  from a present sheet missing columns.
+- Alembic migration `3c6653dbe726` (baseline `fe56fa70289e` applied
+  first): the four `collections_*` tables and their indexes.
+  `compose.override.yml`'s dev `backend` command now runs
+  `alembic upgrade head` before `fastapi dev`.
+- Test suite additions (15 new tests, 122 total):
+  `tests/persistence/test_service.py` (run lifecycle, five deliberately
+  broken workbooks each asserted to a specific `error_code` and a
+  traceback-free `error_message`), `tests/persistence/test_sql_crosscheck.py`
+  (the independently-derived SQL recompute MASTER_PLAN.md section 10
+  asks for — a SQL `SUM`/`GROUP BY` over persisted `RunInvoicePosition`
+  rows checked against the same reference numbers), `tests/test_errors.py`,
+  and a `SheetMissingError` test in `tests/ingest/test_loader.py`.
+  `tests/ingest/workbook_builder.py`: minimal in-memory workbook builder
+  for the failure-path tests. `tests/persistence/conftest.py`: in-memory
+  SQLite `session` fixture — fast, no docker compose needed to run
+  `pytest`; the real Postgres schema is exercised via
+  `alembic upgrade head` and guarded against drift by `alembic check`.
+
+### Fixed
+
+- `frontend/src/routeTree.gen.ts` was stale (the `collections/*.tsx`
+  route files existed but the generated route tree was never refreshed),
+  breaking the backend's Docker build (the frontend builds into the
+  backend image as a build stage). Regenerated.
+
 ## [0.3.0] - 2026-08-31
 
 ### Added

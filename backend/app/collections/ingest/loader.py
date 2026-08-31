@@ -32,7 +32,7 @@ from app.collections.ingest.resolver import (
     INVOICE_FIELDS,
     PAYMENT_FIELDS,
     REGION_MAP_FIELDS,
-    ColumnResolutionError,
+    SheetMissingError,
     resolve_columns,
 )
 
@@ -41,7 +41,7 @@ REQUIRED_SHEETS = ("Customers", "Invoices", "Payments", "Region_Mapping")
 
 def _get_sheet(workbook: openpyxl.Workbook, name: str) -> Worksheet:
     if name not in workbook.sheetnames:
-        raise ColumnResolutionError(name, ["<sheet not found in workbook>"])
+        raise SheetMissingError(name)
     return workbook[name]
 
 
@@ -182,7 +182,8 @@ def _load_region_map(sheet: Worksheet, warnings: list[str]) -> list[RegionMap]:
 def load_workbook(path: Path) -> CanonicalDataset:
     """Load the four required sheets into a CanonicalDataset.
 
-    Raises ColumnResolutionError if a required sheet or column is missing.
+    Raises SheetMissingError if a required sheet is absent, or
+    ColumnResolutionError if a present sheet is missing required columns.
     """
     workbook = openpyxl.load_workbook(path, data_only=True)
     warnings: list[str] = []
