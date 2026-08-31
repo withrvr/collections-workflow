@@ -27,7 +27,8 @@ from zipfile import BadZipFile
 from openpyxl.utils.exceptions import InvalidFileException
 from sqlmodel import Session
 
-from app.collections.ai.roles import summary_narrator
+from app.collections.ai.roles import exception_explainer, summary_narrator
+from app.collections.ai.roles.exception_explainer import RuleExplanation
 from app.collections.calculate.ageing import ageing_bucket
 from app.collections.calculate.overdue import compute_positions, overdue_only
 from app.collections.calculate.regions import (
@@ -44,6 +45,7 @@ from app.collections.models import (
     Run,
     RunException,
     RunInvoicePosition,
+    RunRuleExplanation,
     get_datetime_utc,
 )
 from app.collections.observability import events
@@ -106,6 +108,24 @@ def _persist_exceptions(
         )
 
 
+def _persist_explanations(
+    session: Session, run_id: uuid.UUID, explanations: dict[str, RuleExplanation]
+) -> None:
+    for explanation in explanations.values():
+        session.add(
+            RunRuleExplanation(
+                run_id=run_id,
+                rule_code=explanation.rule_code,
+                cause=explanation.cause,
+                impact=explanation.impact,
+                suggested_fix=explanation.suggested_fix,
+                owner=explanation.owner,
+                auto_fixable=explanation.auto_fixable,
+                source=explanation.source,
+            )
+        )
+
+
 def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
     """Run the full pipeline against one uploaded workbook and persist the
     result. Always returns a `Run` -- a bad input file produces a `FAILED`
@@ -155,6 +175,15 @@ def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
             "info",
             "VALIDATE_COMPLETED",
             f"Found {len(exception_rows)} exception(s) across 14 rule(s).",
+        )
+
+        explanations = exception_explainer.explain_rules(exception_rows)
+        _persist_explanations(session, run.id, explanations)
+        emit(
+            "validate",
+            "info",
+            "EXPLAIN_COMPLETED",
+            f"Explained {len(explanations)} rule(s) that fired.",
         )
 
         emit(

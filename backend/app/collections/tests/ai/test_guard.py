@@ -1,4 +1,4 @@
-from app.collections.ai.guard import numbers_are_contained
+from app.collections.ai.guard import ids_are_contained, numbers_are_contained
 
 
 def test_matching_numbers_pass() -> None:
@@ -27,3 +27,19 @@ def test_percent_and_currency_symbols_do_not_affect_matching() -> None:
     context = "Exception rate: 47.2%. Total: Rs 1,202,000.00."
     output = "The rate was 47.2 percent on a total of 1202000.00."
     assert numbers_are_contained(output, context)
+
+
+def test_ids_matching_allowed_set_pass() -> None:
+    assert ids_are_contained("Fired on INV-1027.", {"INV-1027", "C001"})
+
+
+def test_id_not_in_allowed_set_fails() -> None:
+    assert not ids_are_contained("Fired on INV-9999.", {"INV-1027"})
+
+
+def test_no_ids_in_output_always_passes() -> None:
+    assert ids_are_contained("One record was affected.", {"INV-1027"})
+
+
+def test_id_matching_is_case_insensitive() -> None:
+    assert ids_are_contained("Fired on inv-1027.", {"INV-1027"})

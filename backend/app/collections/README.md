@@ -5,7 +5,7 @@ service built on `fastapi/full-stack-fastapi-template`. This file is the
 single source of truth for what the service does and how to run it; see
 `docs/` for internals (owned per file, see below).
 
-Status: **Phase 6 (LLM layer) complete**. This README
+Status: **Phase 7 (Exception Explainer) complete**. This README
 will be filled in as each phase lands; see `../../../docs/CHANGELOG.md`
 for what has shipped so far.
 
@@ -31,8 +31,15 @@ LLM (Ollama, `phi4-mini`) in front of that narrative — the model
 narrates the already-computed numbers, never raw sheets, and never gets
 the final word: a numeric guard rejects any output that invents a
 figure it wasn't given, falling through to the same deterministic
-template if the model (or the network) fails. See `docs/CHANGELOG.md`
-for what each phase adds.
+template if the model (or the network) fails. Phase 7 adds the same
+treatment to the exception catalogue itself: every one of the 14 rules
+that fires gets a cause/impact/suggested-fix/owner explanation — batched
+once per rule code, not per row, since "why did E001 fire" has one
+answer no matter how many invoices it hit — guarded the same way (an
+explanation can't name a record ID it was never shown), and
+`auto_fixable` is hardcoded `False` everywhere: the model explains, it
+never gets to decide something is safe to auto-correct. See
+`docs/CHANGELOG.md` for what each phase adds.
 
 ## How to run
 
@@ -125,8 +132,22 @@ end against a real (not mocked) local model.
 
 **anydoc** (`ai/context.py`): workbook-to-Markdown conversion for LLM
 context only, never a calculation source — see `docs/ARCHITECTURE.md`'s
-anydoc boundary. Not yet consumed by any Phase 6 role; ready for Phase 7's
-exception_explainer and Phase 10's schema_mapper.
+anydoc boundary. Still not consumed by any role as of Phase 7 —
+`exception_explainer` batches by rule code off the already-typed
+`ExceptionRow`s, not raw sheets; ready for Phase 10's schema_mapper.
+
+**Exception Explainer** (`ai/roles/exception_explainer.py`, Phase 7):
+same three-rung chain and per-rung numeric-style guard as the narrator,
+but guarding record IDs instead of numbers (`ai/guard.py`'s
+`ids_are_contained`) — an explanation naming an invoice/payment/customer
+ID outside its own batch is rejected outright. The deterministic third
+rung is `RULE_METADATA`, a fixed cause/impact/fix/owner per rule code in
+the same words `docs/RULES.md` already establishes — never improvised.
+Cached per `(rule_code, sorted affected IDs)` so the overwhelmingly
+common case (re-running against the same dataset) never re-hits the
+LLM. Persisted once per `(run, rule_code)` — `RunRuleExplanation` — and
+joined onto every matching `RunException` row at
+`GET /collections/exceptions`.
 
 **Agent-side build tooling**: [ponytail](https://github.com/DietrichGebert/ponytail)
 (`/ponytail-review` before every MR) and [caveman](https://github.com/JuliusBrussee/caveman)
@@ -135,7 +156,7 @@ onward, MASTER_PLAN.md section 6.
 
 ## Validation performed
 
-- **154 tests** (`uv run pytest app/collections/tests -v`): loader/resolver
+- **162 tests** (`uv run pytest app/collections/tests -v`): loader/resolver
   tests, boundary tests on the calculators, a positive and a negative case
   per exception rule against hand-built records, and the tests below.
 - **Rule coverage test** (`tests/validate/test_coverage.py`): asserts every
@@ -195,6 +216,16 @@ onward, MASTER_PLAN.md section 6.
   and the fallback chain reaches the deterministic template correctly
   when Ollama is unreachable (`monkeypatch`, no real network dependency
   for that assertion). `test_provider.py`, `test_context.py`.
+- **Explainer tests** (`tests/ai/test_exception_explainer.py`, Phase 7):
+  every one of the 14 rules that fires on dataset A gets an explanation
+  (`set(explanations) == set(RULE_METADATA)`), `auto_fixable` is `False`
+  across the board, the fallback rung reproduces `RULE_METADATA`
+  verbatim when Ollama is unreachable, and — against a real, unmocked
+  local model — no explanation's `cause` field ever mentions a record ID
+  outside the exact set of IDs that rule actually fired on in that
+  batch. `test_guard.py` extends the same file with `ids_are_contained`
+  cases (matching ID passes, an unlisted ID fails, case-insensitive
+  matching, no-IDs-present trivially passes).
 
 ## Owning-doc map
 

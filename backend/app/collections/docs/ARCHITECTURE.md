@@ -4,7 +4,7 @@ Owns: components, data flow, why each decision was made, trade-offs, what
 breaks at scale. Does not own: how to run anything (see `DEVELOPMENT.md`),
 endpoint payloads (see `API.md`).
 
-Status: **Phase 6 complete.** Populated phase by phase as components land.
+Status: **Phase 7 complete.** Populated phase by phase as components land.
 
 ## Components
 
@@ -42,10 +42,13 @@ Status: **Phase 6 complete.** Populated phase by phase as components land.
 - `ai/roles/summary_narrator.py` (Phase 6): the three-rung fallback
   chain (Ollama -> cloud if configured -> deterministic template) for
   the run narrative, numeric-guarded at every rung.
-- `ai/context.py` (Phase 6): anydoc workbook-to-Markdown, for Phase 7/10
-  roles to consume -- not called by anything in Phase 6 itself.
+- `ai/context.py` (Phase 6): anydoc workbook-to-Markdown, for Phase 10's
+  schema_mapper to consume -- still not called by anything as of Phase 7.
 - `observability/metrics.py` (Phase 6, formalized in Phase 12): plain
   in-process `llm_calls_total` counter for now.
+- `ai/roles/exception_explainer.py` (Phase 7): `explain_rules`, the
+  batched-by-rule-code three-rung chain -- see "The LLM layer" below.
+  `models.RunRuleExplanation` persists one row per `(run, rule_code)`.
 - `export/` (Phase 9+): not yet populated.
 
 ## Why `validate/schemas.py` is not Pandera
@@ -227,6 +230,42 @@ place) is Phase 6's own proof of its done-when: local Ollama calls
 succeed and are counted, and since Ollama is local (no cloud round trip),
 this holds with the network disconnected -- verified directly by
 `tests/ai/test_summary_narrator.py` against a real, unmocked local model.
+
+### The Exception Explainer (Phase 7)
+
+`ai/roles/exception_explainer.py`'s `explain_rules` is the same
+three-rung chain, applied to the exception catalogue instead of the run
+summary, with two deliberate differences:
+
+- **Batched by rule code, not per row.** `docs/RULES.md` is a fixed
+  14-entry catalogue -- "why did E001 fire" has one answer regardless of
+  whether it fired once or five times in a given run. One
+  `RuleExplanation` per distinct `rule_code` present in a run's
+  exceptions is computed and persisted (`RunRuleExplanation`, one row
+  per `(run, rule_code)`), then joined onto every matching `RunException`
+  row at read time (`api/exceptions.py`) -- "every exception row carries
+  an explanation" by lookup, not by redundant per-row storage.
+- **Guards IDs, not numbers.** `ai/guard.py`'s `ids_are_contained`
+  checks that every `INV-####`/`PAY-####`/`C###`-style token the model's
+  output mentions is one of the actual IDs in that rule's batch for that
+  run -- the failure mode here isn't a wrong number, it's the model
+  citing a specific example it invented (or misremembered from a
+  different rule's batch). Same rejection-and-fall-through behavior as
+  the numeric guard.
+
+The deterministic third rung, `RULE_METADATA`, is not batch-specific --
+it is each rule's fixed, general cause/impact/suggested-fix/owner, in
+the same words `docs/RULES.md`'s own "Why" prose already establishes,
+so the fallback is never improvised text. `auto_fixable` is a hardcoded
+`False` on every `RuleExplanation` regardless of rung -- the LLM is not
+in the business of deciding a row is safe to auto-correct (AGENTS.md);
+it explains, never fixes.
+
+`_cached_explanation` is `functools.lru_cache`-wrapped, keyed on
+`(rule_code, category, sorted affected IDs)`: re-running against the
+same dataset (the overwhelmingly common case in this codebase's own
+test suite and in a real demo re-run) never re-hits the LLM for a batch
+it has already explained identically.
 
 ### Docker Compose and Ollama
 

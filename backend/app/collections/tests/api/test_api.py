@@ -80,6 +80,12 @@ def test_exceptions_endpoint_and_rule_filter(client: TestClient) -> None:
     body = filtered.json()
     assert body["count"] == 1
     assert body["data"][0]["rule_code"] == "E001"
+    row = body["data"][0]
+    assert row["cause"]
+    assert row["suggested_fix"]
+    assert row["owner"]
+    assert row["auto_fixable"] is False
+    assert row["explanation_source"] in ("ollama", "cloud", "fallback")
 
 
 def test_regions_endpoint_west_heaviest(client: TestClient) -> None:
@@ -117,6 +123,7 @@ def test_run_log_events_endpoint(client: TestClient) -> None:
     assert stages == [
         "load",
         "load",
+        "validate",
         "validate",
         "validate",
         "calculate",

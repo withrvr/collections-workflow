@@ -4,7 +4,7 @@ Owns: every endpoint — method, path, params, response schema, status
 codes, error codes. Does not own: business rationale (see `README.md`),
 setup (see `DEVELOPMENT.md`).
 
-Status: **Phase 6 complete.** All endpoints mounted under
+Status: **Phase 7 complete.** All endpoints mounted under
 `/api/v1/collections`, no auth required. Response schemas:
 `app/collections/api/schemas.py`.
 
@@ -54,7 +54,30 @@ doesn't exist; empty `data`/`count: 0` if the run failed before
 ### `GET /collections/exceptions/?run_id=&rule_code=&severity=`
 
 Every `RunException` for that run. `rule_code` (e.g. `E001`) and
-`severity` (`error`/`warning`) are optional filters.
+`severity` (`error`/`warning`) are optional filters. Each row also
+carries its rule's explanation (Phase 7) — `cause`, `impact`,
+`suggested_fix`, `owner`, `auto_fixable` (always `false`), and
+`explanation_source` (`"ollama"`/`"cloud"`/`"fallback"`) — joined from
+the run's shared per-rule-code explanation, not stored per row (every
+`E001` row in a run carries the identical explanation).
+
+```json
+{
+  "run_id": "uuid", "count": 17,
+  "data": [{
+    "id": "uuid", "rule_code": "E001", "category": "Missing due date",
+    "message": "Invoice INV-1027 has no Due Date, so it cannot be classified overdue or current. Excluded from the overdue report.",
+    "severity": "error", "invoice_id": "INV-1027", "payment_id": null, "customer_id": "C...",
+    "detail_json": null,
+    "cause": "Due Date was left blank on the invoice. During the latest batch, Rule E001 was triggered for 1 record, specifically INV-1027, due to an unfilled due date field.",
+    "impact": "The invoice cannot be classified overdue or current, so it is excluded from the overdue report entirely.",
+    "suggested_fix": "Backfill Due Date on the source invoice in the ERP and re-run.",
+    "owner": "AR / Order-to-Cash team",
+    "auto_fixable": false,
+    "explanation_source": "ollama"
+  }]
+}
+```
 
 ### `GET /collections/regions/?run_id=`
 

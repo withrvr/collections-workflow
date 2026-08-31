@@ -78,6 +78,11 @@ class OverdueOut(BaseModel):
 
 
 class ExceptionOut(BaseModel):
+    """`cause`/`impact`/`suggested_fix`/`owner`/`auto_fixable` come from
+    the rule's shared `RunRuleExplanation` (Phase 7), joined by
+    `rule_code` -- not stored per exception row. `auto_fixable` is
+    always `False` -- see `ai/roles/exception_explainer.py`."""
+
     id: uuid.UUID
     rule_code: str
     category: str
@@ -87,6 +92,12 @@ class ExceptionOut(BaseModel):
     payment_id: str | None
     customer_id: str | None
     detail_json: dict[str, Any] | None
+    cause: str | None
+    impact: str | None
+    suggested_fix: str | None
+    owner: str | None
+    auto_fixable: bool
+    explanation_source: str | None  # "ollama" | "cloud" | "fallback"
 
     model_config = {"from_attributes": True}
 
