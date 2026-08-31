@@ -3,10 +3,11 @@
 Owns: the exception rule catalogue, single source of truth for E001-E014.
 Does not own: anything that isn't a rule.
 
-Status: **Phase 2 in progress.** Rules are implemented and documented
-together — this file is the single source of truth for the catalogue and
-must match `backend/app/collections/validate/rules.py` exactly. Updated
-incrementally, one rule per commit, as each lands.
+Status: **14/14 rules implemented** in `validate/rules.py`, registered in
+`validate/engine.py`. Coverage asserted in
+`tests/validate/test_coverage.py` (lands in the next PR, along with the
+reconciliation tests). This file is the single source of truth for the
+catalogue and must match the code exactly.
 
 ## Severity
 
@@ -29,6 +30,11 @@ which describes pipeline-stage health, not business weight.
 | E008 | Missing GSTIN | warning | 1 |
 | E005 | Non-positive payment amount | error | 2 |
 | E009 | Payment after report date | warning | 1 |
+| E002 | Unknown customer reference (invoice or payment) | error | 2 |
+| E003 | Unknown invoice reference | error | 1 |
+| E007 | Payment-to-invoice customer mismatch | error | 1 |
+| E010 | Payment before invoice date | warning | 1 |
+| E014 | Overpayment (payments exceed invoice amount) | warning | 1 |
 
 ## E001 — Missing due date
 
@@ -121,3 +127,82 @@ enumerated exception categories list this explicitly. It is expected
 business activity, not bad data — hence `warning`, not `error` — but a
 reviewer looking at why a position didn't move needs to see it, not
 infer it.
+
+## E002 — Unknown customer reference
+
+**Condition:** `customer_id` on an invoice *or* a payment is not present
+in the Customers sheet. One rule, checked against both sheets, since
+either kind of record can carry a dangling customer reference.
+**Fires on:** INV-1026 (Customer_ID C999), PAY-2025 (Customer_ID C999).
+PAY-2025 also fires E003 independently (its Invoice_ID is unknown too) —
+deliberately two separate rows rather than one combined flag, so each
+broken reference is visible regardless of whether the other were fixed.
+**Excludes:** the invoice from the overdue report; a payment referencing
+an unknown customer is also, incidentally, unresolvable (see E003).
+**Why:** cannot attribute a Region or a credit position to a customer
+that doesn't exist in the master data.
+
+## E003 — Unknown invoice reference
+
+**Condition:** `Payment.invoice_id` is not present in the Invoices sheet.
+**Fires on:** PAY-2025 (Invoice_ID INV-9999). PAY-2025 also fires E002
+independently (its Customer_ID is C999) — see E002 above.
+**Excludes:** the payment is never applied to anything —
+`calculate/outstanding.py` indexes payments by real invoice IDs, so there
+is nothing to index it under.
+**Why:** cash received against a reference that doesn't exist needs a
+human to say what it was actually for.
+
+## E007 — Payment-to-invoice customer mismatch
+
+**Condition:** `Payment.customer_id != Invoice.customer_id` for the
+invoice the payment names (only evaluated when that invoice exists — see
+E003).
+**Fires on:** PAY-2026 — recorded against customer C003, but INV-1002
+belongs to C002.
+**Excludes:** the payment from C002's valid paid total, so C002 correctly
+still shows overdue rather than being credited with someone else's cash.
+**Why (worked example, matches MASTER_PLAN.md section 8 and QA_PREP.md
+Q11):** the payment is flagged rather than reassigned, since reassignment
+would be a silent data correction moving cash between ledgers on a guess.
+Owner: Accounts Receivable.
+
+## E010 — Payment before invoice date
+
+**Condition:** `Payment.payment_date < Invoice.invoice_date` (only when
+the invoice resolves — see E003).
+**Fires on:** PAY-2027 (2026-06-05) against INV-1004 (invoice date
+2026-06-10).
+**Does NOT exclude** the payment from `compute_outstanding` — see
+README.md Assumptions; this is a data-quality-only flag.
+**Why:** worth a human's eye (possibly a misdated invoice or a
+pre-payment against a purchase order), but the workbook doesn't
+authorize excluding it, so the calculation still counts it in full.
+
+## E014 — Overpayment (payments exceeding invoice amount)
+
+**Condition:** sum of valid payments for an invoice (the same
+`valid_payments_total` the calculator itself uses) exceeds
+`Invoice.invoice_amount`.
+**Fires on:** INV-1007 — invoice amount 88,000; PAY-2008 (30,000) +
+PAY-2028 (80,000) = 110,000, an overpayment of 22,000.
+**Not on the assessment's required list** — added because the data
+called for it (see QA_PREP.md Q5).
+**Excludes nothing further:** `compute_outstanding` already floors at
+zero, so no negative/credit figure leaks into the overdue report; this
+rule surfaces *why* that floor applied.
+**Why not net against the customer's other invoices:** netting is a
+business decision the workbook doesn't define — surfaced, not assumed.
+
+## Notes on rule interactions
+
+- PAY-2025 fires both E002 and E003 (see E002/E003 above) — by design,
+  not a bug in either rule.
+- E006 and E008 are mutually exclusive per customer (E006 requires a
+  non-null GSTIN).
+- E007 and E010 both skip a payment whose `invoice_id` doesn't resolve
+  (that case is E003's alone) rather than raising or comparing against
+  nothing.
+- E014 only evaluates invoices with `invoice_amount > 0`, to avoid a
+  spurious fire against an already-E004-flagged negative-amount invoice
+  with zero payments against it.

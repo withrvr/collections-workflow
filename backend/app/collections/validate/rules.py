@@ -14,6 +14,7 @@ from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 
+from app.collections.calculate.outstanding import index_payments_by_invoice, valid_payments_total
 from app.collections.contracts import CanonicalDataset, CanonicalInvoice, ExceptionRow
 
 # 2-digit state code, 10-char PAN, entity code digit, literal Z, checksum char.
@@ -205,4 +206,159 @@ def check_e009_payment_after_report_date(dataset: CanonicalDataset, report_date:
                 payment_id=payment.payment_id,
                 customer_id=payment.customer_id,
                 detail={"payment_date": payment.payment_date, "report_date": report_date},
+            )
+
+
+# ---------------------------------------------------------------------------
+# Cross-reference rules
+# ---------------------------------------------------------------------------
+
+
+def check_e002_unknown_customer_reference(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    """Checked against both invoices and payments -- either kind of record
+    can carry a dangling Customer_ID. A payment that also references an
+    unknown invoice (e.g. PAY-2025) fires this rule independently of E003:
+    each broken reference is its own true, actionable fact."""
+    known_customer_ids = {c.customer_id for c in dataset.customers}
+    for invoice in dataset.invoices:
+        if invoice.customer_id not in known_customer_ids:
+            yield ExceptionRow(
+                rule_code="E002",
+                category="Unknown customer reference",
+                message=(
+                    f"Invoice {invoice.invoice_id} references Customer_ID "
+                    f"'{invoice.customer_id}', which is not in the Customers sheet. "
+                    "Excluded from the overdue report."
+                ),
+                severity="error",
+                invoice_id=invoice.invoice_id,
+                customer_id=invoice.customer_id,
+            )
+    for payment in dataset.payments:
+        if payment.customer_id not in known_customer_ids:
+            yield ExceptionRow(
+                rule_code="E002",
+                category="Unknown customer reference",
+                message=(
+                    f"Payment {payment.payment_id} references Customer_ID "
+                    f"'{payment.customer_id}', which is not in the Customers sheet."
+                ),
+                severity="error",
+                payment_id=payment.payment_id,
+                invoice_id=payment.invoice_id,
+                customer_id=payment.customer_id,
+            )
+
+
+def check_e003_unknown_invoice_reference(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    known_invoice_ids = {i.invoice_id for i in dataset.invoices}
+    for payment in dataset.payments:
+        if payment.invoice_id not in known_invoice_ids:
+            yield ExceptionRow(
+                rule_code="E003",
+                category="Unknown invoice reference",
+                message=(
+                    f"Payment {payment.payment_id} references Invoice_ID "
+                    f"'{payment.invoice_id}', which is not in the Invoices sheet. "
+                    "The payment cannot be applied to anything."
+                ),
+                severity="error",
+                payment_id=payment.payment_id,
+                invoice_id=payment.invoice_id,
+                customer_id=payment.customer_id,
+            )
+
+
+def check_e007_payment_invoice_customer_mismatch(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    invoices_by_id = {i.invoice_id: i for i in dataset.invoices}
+    for payment in dataset.payments:
+        invoice = invoices_by_id.get(payment.invoice_id)
+        if invoice is None:
+            continue  # unresolved reference is E003's concern, not this rule's
+        if payment.customer_id != invoice.customer_id:
+            yield ExceptionRow(
+                rule_code="E007",
+                category="Payment-to-invoice customer mismatch",
+                message=(
+                    f"Payment {payment.payment_id} is recorded against customer "
+                    f"{payment.customer_id}, but the invoice it pays "
+                    f"({invoice.invoice_id}) belongs to customer {invoice.customer_id}. "
+                    f"Excluded from {invoice.customer_id}'s paid total rather than "
+                    "reassigned, since reassignment would be a silent data correction."
+                ),
+                severity="error",
+                payment_id=payment.payment_id,
+                invoice_id=invoice.invoice_id,
+                customer_id=payment.customer_id,
+                detail={
+                    "payment_customer_id": payment.customer_id,
+                    "invoice_customer_id": invoice.customer_id,
+                },
+            )
+
+
+def check_e010_payment_before_invoice_date(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    invoices_by_id = {i.invoice_id: i for i in dataset.invoices}
+    for payment in dataset.payments:
+        invoice = invoices_by_id.get(payment.invoice_id)
+        if invoice is None:
+            continue  # unresolved reference is E003's concern, not this rule's
+        if payment.payment_date < invoice.invoice_date:
+            yield ExceptionRow(
+                rule_code="E010",
+                category="Payment before invoice date",
+                message=(
+                    f"Payment {payment.payment_id} ({payment.payment_date}) is dated "
+                    f"before its own invoice {invoice.invoice_id}'s invoice date "
+                    f"({invoice.invoice_date}). Still counted in full toward "
+                    "outstanding -- see README.md Assumptions."
+                ),
+                severity="warning",
+                payment_id=payment.payment_id,
+                invoice_id=invoice.invoice_id,
+                customer_id=payment.customer_id,
+                detail={"payment_date": payment.payment_date, "invoice_date": invoice.invoice_date},
+            )
+
+
+def check_e014_overpayment(dataset: CanonicalDataset, report_date: date) -> Iterator[ExceptionRow]:
+    """Not on the assessment's required list -- added because the data called
+    for it (see QA_PREP.md Q5). Reuses outstanding.py's own valid_payments_total
+    so this rule and the real calculation can never disagree about what counts
+    as a valid payment. Guards invoice_amount > 0 first, to avoid a spurious
+    fire against an already-E004-flagged negative-amount invoice with zero
+    payments against it. Evaluates all invoices regardless of status -- an
+    overpayment against a Cancelled invoice is just as much an AR problem."""
+    payments_by_invoice = index_payments_by_invoice(dataset.payments)
+    for invoice in dataset.invoices:
+        if invoice.invoice_amount <= Decimal("0"):
+            continue
+        paid = valid_payments_total(invoice, payments_by_invoice, report_date)
+        if paid > invoice.invoice_amount:
+            overpaid = paid - invoice.invoice_amount
+            yield ExceptionRow(
+                rule_code="E014",
+                category="Overpayment",
+                message=(
+                    f"Invoice {invoice.invoice_id} has valid payments totalling "
+                    f"{paid}, exceeding its amount of {invoice.invoice_amount} by "
+                    f"{overpaid}. Outstanding is floored at zero rather than shown "
+                    "as negative/credit."
+                ),
+                severity="warning",
+                invoice_id=invoice.invoice_id,
+                customer_id=invoice.customer_id,
+                detail={
+                    "invoice_amount": invoice.invoice_amount,
+                    "valid_paid": paid,
+                    "overpaid": overpaid,
+                },
             )
