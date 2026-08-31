@@ -16,5 +16,7 @@ Status: **Phase 0 skeleton.** Router stubs exist under
 ## Endpoints
 
 _Filled in Phase 4: one section per endpoint, with request/response
-schemas and error codes (see the `PipelineError` contract in
-`ARCHITECTURE.md`)._
+schemas and error codes. The error contract itself (`PipelineError`,
+`error_code`/`error_message` on a `FAILED` run) is built and documented
+in `ARCHITECTURE.md`'s "The error contract" section as of Phase 3 —
+Phase 4 wires it to HTTP responses, not from scratch._
