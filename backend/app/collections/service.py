@@ -1,13 +1,12 @@
-"""The orchestrator: load -> validate -> calculate -> persist, top to bottom.
+"""The orchestrator: load -> validate -> calculate -> control -> summarise
+-> persist, top to bottom.
 
 A plain Python function calling each stage in a fixed order, deliberately
 not an autonomous agent (see QA_PREP.md, question 16). Built in Phase 3
-(MASTER_PLAN.md). `control` (the 5% gate, Phase 5) and `summarise` (the
-deterministic/LLM summary, Phase 5-6) stages are named in
-`models.EventStage` already so the stage catalogue does not change shape
-again when those phases land, but this function does not call them yet --
-every run Phase 3 produces either completes or fails at load/validate/
-calculate.
+(MASTER_PLAN.md); `control` (the 5% gate) and `summarise` (the
+deterministic Jinja narrative -- Phase 6 adds an LLM rung above it, this
+one never fails) wired up in Phase 5. `map` (Phase 10, multi-workbook
+column mapping) is named in `models.EventStage` but still not called.
 
 Every stage writes a `run_events` row before and after doing its work
 (see observability/events.py). Every exception that can reach this
@@ -28,11 +27,16 @@ from zipfile import BadZipFile
 from openpyxl.utils.exceptions import InvalidFileException
 from sqlmodel import Session
 
+from app.collections.ai.fallback import render_summary
 from app.collections.calculate.ageing import ageing_bucket
 from app.collections.calculate.overdue import compute_positions, overdue_only
-from app.collections.calculate.regions import build_customer_region_map
+from app.collections.calculate.regions import (
+    build_customer_region_map,
+    summarize_outstanding_by_region,
+)
 from app.collections.config import settings
 from app.collections.contracts import CanonicalDataset, ExceptionRow
+from app.collections.control.gate import evaluate_gate
 from app.collections.errors import PipelineError
 from app.collections.ingest.loader import load_workbook
 from app.collections.ingest.resolver import ColumnResolutionError, SheetMissingError
@@ -189,7 +193,37 @@ def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
             f"Rs {total_outstanding:,.2f} outstanding.",
         )
 
-        run.status = "COMPLETED"
+        emit(
+            "control",
+            "info",
+            "CONTROL_STARTED",
+            "Checking the exception rate against the control threshold.",
+        )
+        gate = evaluate_gate(len(dataset.invoices), exception_rows)
+        emit(
+            "control",
+            "info" if gate.status == "PASSED" else "warning",
+            f"CONTROL_{gate.status}",
+            f"Exception rate {gate.exception_row_rate:.1%} "
+            f"({'within' if gate.status == 'PASSED' else 'exceeds'} the {gate.threshold:.0%} threshold) -- {gate.status}.",
+        )
+
+        by_region = summarize_outstanding_by_region(overdue, customer_region)
+        heaviest_region = (
+            max(by_region, key=lambda r: by_region[r]) if by_region else None
+        )
+        narrative = render_summary(
+            source_filename=source_filename,
+            report_date=str(report_date),
+            invoice_count=len(dataset.invoices),
+            overdue_count=len(overdue),
+            total_outstanding=total_outstanding,
+            heaviest_region=heaviest_region,
+            gate=gate,
+        )
+        emit("summarise", "info", "SUMMARISE_COMPLETED", narrative)
+
+        run.status = gate.status
         run.completed_at = get_datetime_utc()
         run.customer_count = len(dataset.customers)
         run.invoice_count = len(dataset.invoices)
@@ -197,6 +231,11 @@ def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
         run.overdue_count = len(overdue)
         run.total_outstanding = total_outstanding
         run.exception_count = len(exception_rows)
+        run.gate_threshold = gate.threshold
+        run.exception_row_rate = gate.exception_row_rate
+        run.distinct_invoices_affected = gate.distinct_invoices_affected
+        run.distinct_invoice_rate = gate.distinct_invoice_rate
+        run.narrative = narrative
         emit("persist", "info", "PERSIST_COMPLETED", "Run results saved.")
 
     except PipelineError as exc:

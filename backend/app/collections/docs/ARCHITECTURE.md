@@ -4,7 +4,7 @@ Owns: components, data flow, why each decision was made, trade-offs, what
 breaks at scale. Does not own: how to run anything (see `DEVELOPMENT.md`),
 endpoint payloads (see `API.md`).
 
-Status: **Phase 4 complete.** Populated phase by phase as components land.
+Status: **Phase 5 complete.** Populated phase by phase as components land.
 
 ## Components
 
@@ -28,7 +28,13 @@ Status: **Phase 4 complete.** Populated phase by phase as components land.
   SQLModel tables) and `deps.py` (`get_run_or_404`). No auth — this is
   an internal ops tool, not a multi-tenant product, and MASTER_PLAN.md
   never asks for one.
-- `control/`, `ai/`, `export/` (Phase 5+): not yet populated.
+- `control/gate.py` (Phase 5): the 5% exception-rate gate. Never tuned
+  to pass -- see "The control gate" below.
+- `ai/fallback.py` (Phase 5): the deterministic Jinja narrative, the
+  last rung of Phase 6's LLM fallback chain. Works with no network, no
+  model -- every run gets a plain-English summary regardless of whether
+  Ollama is even installed.
+- `export/` (Phase 9+): not yet populated.
 
 ## Why `validate/schemas.py` is not Pandera
 
@@ -75,22 +81,20 @@ order — deliberately not an autonomous agent (see QA_PREP.md question 16).
 `models.EventStage` names all seven stages the design settles on —
 `load`, `map`, `validate`, `calculate`, `control`, `summarise`, `persist`
 — so the catalogue's shape does not change again as later phases fill it
-in, but Phase 3 only implements four of them:
+in. As of Phase 5, six of the seven are wired up:
 
 ```
-load -> validate -> calculate -> persist
+load -> validate -> calculate -> control -> summarise -> persist
 ```
 
-`map` (Phase 10, multi-workbook column mapping) and `control`/`summarise`
-(Phase 5-6, the exception-rate gate and the deterministic/LLM summary)
-are named but not called yet — every Phase 3 run either completes after
-`calculate` or fails at whichever of the four stages raised.
+`map` (Phase 10, multi-workbook column mapping) is still named but not
+called — every current run resolves columns by exact match only.
 
 Every stage writes a `run_events` row before/after its work
 (`observability/events.py`). A `Run` is always a real, queryable row --
 `POST /run` (Phase 4) never has to catch an exception out of the
 orchestrator, because `execute_run` never raises; it returns a `Run`
-whose `status` is `COMPLETED` or `FAILED`.
+whose `status` is `PASSED`, `BLOCKED`, or `FAILED`.
 
 ## The error contract
 
@@ -115,17 +119,52 @@ in this code, not a bad input file — is caught by `execute_run`'s final
 user as a single generic `UNEXPECTED_ERROR` event, never the traceback
 itself.
 
+## The control gate
+
+`control/gate.py`'s `evaluate_gate` is a pure function: invoice count in,
+`GateResult` out. It is deliberately never tuned to pass —
+`dataset_a_original.xlsx` blocks (47.2%), and that is the correct,
+expected output for the given assessment file, not a bug to chase away.
+
+QA_PREP.md Q8 flags that the brief's wording, "exception records over
+invoice records," is ambiguous: one invoice can carry more than one
+exception, and some exceptions (e.g. E002 on a payment, E005) never
+touch an `invoice_id` at all. `evaluate_gate` resolves the ambiguity by
+computing **both** rates rather than picking one silently:
+
+- `exception_row_rate` = `exception_count / invoice_count` — drives the
+  gate. The more literal reading of the brief, and it does not
+  undercount a badly-behaved invoice carrying three exceptions as "one
+  problem."
+- `distinct_invoice_rate` = distinct invoices named by any exception
+  row, over invoice count — reported alongside for transparency, never
+  silently dropped even though it isn't the driving number.
+
+Both rates, the threshold, and the raw counts are persisted on `Run` and
+returned by `GET /collections/summary` — QA_PREP.md Q7's "blocked
+payload reports the rate, both denominators, the threshold, and the
+count," verified directly by `tests/control/test_gate.py` and
+`tests/api/test_api.py`.
+
+`ai/fallback.py`'s `render_summary` turns a `GateResult` plus the run's
+numbers into one plain-English paragraph via a Jinja `Template` — no
+LLM, no network, cannot fail short of a programming bug. This is
+deliberately the *last* rung of Phase 6's LLM fallback chain, built
+first: Phase 6 adds an LLM rung above it, but every run — Ollama
+installed or not, network up or not — always gets a real summary.
+
 ## Why run status and run_events are plain strings, not enums
 
 `models.Run.status` and `RunEvent.stage`/`level` are indexed `str`
 columns, not Postgres native `ENUM` types or a SQLAlchemy `CHECK`
-constraint. A later phase (Phase 5 adds `PASSED`/`BLOCKED` alongside
-`COMPLETED`) growing this catalogue would need `ALTER TYPE ... ADD
-VALUE` for a native enum — awkward mid-transaction on some Postgres
-versions — or a migration to widen a `CHECK` constraint. A plain string
-column, kept in sync with the `RunStatus`/`EventStage`/`EventLevel`
-`Literal` aliases in `models.py`, never needs a migration just because
-the catalogue grew.
+constraint. A later phase (Phase 10 may add `AWAITING_SCHEMA_CONFIRMATION`)
+growing this catalogue would need `ALTER TYPE ... ADD VALUE` for a
+native enum — awkward mid-transaction on some Postgres versions — or a
+migration to widen a `CHECK` constraint. A plain string column, kept in
+sync with the `RunStatus`/`EventStage`/`EventLevel` `Literal` aliases in
+`models.py`, never needs a migration just because the catalogue grew —
+exactly what happened in Phase 5, replacing the placeholder `COMPLETED`
+status with the real `PASSED`/`BLOCKED` outcomes with no schema change.
 
 ## Persistence: SQL crosscheck, not just Python round-trip
 

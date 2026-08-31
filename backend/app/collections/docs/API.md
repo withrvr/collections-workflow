@@ -4,7 +4,7 @@ Owns: every endpoint — method, path, params, response schema, status
 codes, error codes. Does not own: business rationale (see `README.md`),
 setup (see `DEVELOPMENT.md`).
 
-Status: **Phase 4 complete.** All endpoints mounted under
+Status: **Phase 5 complete.** All endpoints mounted under
 `/api/v1/collections`, no auth required. Response schemas:
 `app/collections/api/schemas.py`.
 
@@ -24,7 +24,7 @@ are set only when `status == "FAILED"`.
 
 ```json
 {
-  "id": "uuid", "status": "COMPLETED", "source_filename": "dataset_a.xlsx",
+  "id": "uuid", "status": "BLOCKED", "source_filename": "dataset_a.xlsx",
   "report_date": "2026-07-31", "created_at": "...", "completed_at": "...",
   "error_code": null, "error_message": null,
   "customer_count": 25, "invoice_count": 36, "payment_count": 29,
@@ -66,10 +66,26 @@ Overdue outstanding grouped by region, sorted heaviest first.
 
 ### `GET /collections/summary/?run_id=`
 
-The run's numeric summary plus the region breakdown. `exception_rate`
-is `exception_count / invoice_count`, or `null` if the run never
-reached `calculate`. Phase 5 adds the control-gate fields
-(`gate_status`, `blocked`) to this same response.
+The run's numeric summary, region breakdown, and the control gate's
+"blocked payload" (QA_PREP.md Q7): `gate_threshold` (`0.05`),
+`exception_row_rate` (drives the gate), `distinct_invoices_affected` and
+`distinct_invoice_rate` (the alternate denominator, reported for
+transparency — see `ARCHITECTURE.md`'s control gate section), and
+`narrative`, the deterministic plain-English summary. All `null` if the
+run failed before `control` ran. `status` is `"PASSED"`, `"BLOCKED"`, or
+`"FAILED"`.
+
+```json
+{
+  "run_id": "uuid", "status": "BLOCKED", "report_date": "2026-07-31",
+  "customer_count": 25, "invoice_count": 36, "payment_count": 29,
+  "overdue_count": 15, "total_outstanding": "1202000.00", "exception_count": 17,
+  "gate_threshold": "0.0500", "exception_row_rate": "0.4722",
+  "distinct_invoices_affected": 14, "distinct_invoice_rate": "0.3889",
+  "narrative": "Run against dataset_a_original.xlsx as of 2026-07-31: 36 invoice(s) processed, 15 overdue totaling Rs 1,202,000.00 (West heaviest). 17 exception(s) found (47.2% of invoices, 14 distinct invoice(s) affected, 38.9%) -- BLOCKED: exceeds the 5% control threshold.",
+  "by_region": [{"region": "West", "outstanding": "472000.00", "overdue_count": 5}, "..."]
+}
+```
 
 ### `GET /collections/run-log/{run_id}/events`
 

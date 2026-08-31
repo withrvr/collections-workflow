@@ -28,9 +28,7 @@ def region_breakdown(
             func.sum(RunInvoicePosition.outstanding),
             func.count(),
         )
-        .where(
-            RunInvoicePosition.run_id == run_id, RunInvoicePosition.is_overdue == True
-        )  # noqa: E712
+        .where(RunInvoicePosition.run_id == run_id, RunInvoicePosition.is_overdue)
         .group_by(RunInvoicePosition.region)
     ).all()
     data = [

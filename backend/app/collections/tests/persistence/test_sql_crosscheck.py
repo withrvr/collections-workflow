@@ -33,7 +33,7 @@ def test_sql_sum_of_overdue_outstanding_matches_reference_total(
     total = session.exec(
         select(func.sum(RunInvoicePosition.outstanding)).where(
             RunInvoicePosition.run_id == run.id,
-            RunInvoicePosition.is_overdue == True,  # noqa: E712 -- SQL comparison, not a Python bool check
+            RunInvoicePosition.is_overdue,
         )
     ).one()
 
@@ -46,7 +46,7 @@ def test_sql_count_of_overdue_rows_matches_reference_count(session: Session) -> 
     count = session.exec(
         select(func.count()).where(
             RunInvoicePosition.run_id == run.id,
-            RunInvoicePosition.is_overdue == True,  # noqa: E712
+            RunInvoicePosition.is_overdue,
         )
     ).one()
 
@@ -58,9 +58,7 @@ def test_sql_region_breakdown_matches_west_heaviest(session: Session) -> None:
 
     rows = session.exec(
         select(RunInvoicePosition.region, func.sum(RunInvoicePosition.outstanding))
-        .where(
-            RunInvoicePosition.run_id == run.id, RunInvoicePosition.is_overdue == True
-        )  # noqa: E712
+        .where(RunInvoicePosition.run_id == run.id, RunInvoicePosition.is_overdue)
         .group_by(RunInvoicePosition.region)
     ).all()
     by_region = dict(rows)

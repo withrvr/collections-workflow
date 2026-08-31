@@ -30,7 +30,7 @@ def _upload_dataset_a(client: TestClient) -> dict[str, Any]:
 
 def test_create_run_matches_reference_numbers(client: TestClient) -> None:
     run = _upload_dataset_a(client)
-    assert run["status"] == "COMPLETED"
+    assert run["status"] == "BLOCKED"
     assert run["overdue_count"] == 15
     assert run["total_outstanding"] == "1202000.00"
     assert run["exception_count"] == 17
@@ -97,10 +97,13 @@ def test_summary_endpoint(client: TestClient) -> None:
     response = client.get(f"{API}/summary/", params={"run_id": run["id"]})
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "COMPLETED"
+    assert body["status"] == "BLOCKED"
     assert body["overdue_count"] == 15
     assert body["exception_count"] == 17
     assert body["by_region"][0]["region"] == "West"
+    assert body["gate_threshold"] == "0.0500"
+    assert body["distinct_invoices_affected"] == 14
+    assert "BLOCKED" in body["narrative"]
 
 
 def test_run_log_events_endpoint(client: TestClient) -> None:
@@ -108,7 +111,7 @@ def test_run_log_events_endpoint(client: TestClient) -> None:
     response = client.get(f"{API}/run-log/{run['id']}/events")
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "COMPLETED"
+    assert body["status"] == "BLOCKED"
     stages = [e["stage"] for e in body["data"]]
     assert stages == [
         "load",
@@ -117,6 +120,9 @@ def test_run_log_events_endpoint(client: TestClient) -> None:
         "validate",
         "calculate",
         "calculate",
+        "control",
+        "control",
+        "summarise",
         "persist",
     ]
 

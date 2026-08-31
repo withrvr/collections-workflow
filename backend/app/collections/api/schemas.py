@@ -110,6 +110,11 @@ class RegionsOut(BaseModel):
 
 
 class SummaryOut(BaseModel):
+    """The "blocked payload" QA_PREP.md Q7 describes: the rate, both
+    denominators, the threshold, and the count -- whichever way the gate
+    went. `status` is "PASSED"/"BLOCKED" (or "FAILED" if the run never
+    reached the gate)."""
+
     run_id: uuid.UUID
     status: str
     report_date: date
@@ -119,5 +124,9 @@ class SummaryOut(BaseModel):
     overdue_count: int | None
     total_outstanding: Decimal | None
     exception_count: int | None
-    exception_rate: float | None
+    gate_threshold: Decimal | None
+    exception_row_rate: Decimal | None
+    distinct_invoices_affected: int | None
+    distinct_invoice_rate: Decimal | None
+    narrative: str | None
     by_region: list[RegionBreakdownOut]

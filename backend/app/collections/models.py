@@ -29,7 +29,8 @@ from typing import Any, Literal
 from sqlalchemy import JSON, Column, DateTime, Numeric
 from sqlmodel import Field, Relationship, SQLModel
 
-RunStatus = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED"]
+RunStatus = Literal["PENDING", "RUNNING", "PASSED", "BLOCKED", "FAILED"]
+RATE = Numeric(6, 4)
 EventStage = Literal["load", "validate", "calculate", "control", "summarise", "persist"]
 EventLevel = Literal["info", "warning", "error"]
 
@@ -62,7 +63,7 @@ class Run(SQLModel, table=True):
     error_code: str | None = Field(default=None, max_length=64)
     error_message: str | None = None
 
-    # Set only when status == "COMPLETED". Denormalized run-level totals so
+    # Set only when status in ("PASSED", "BLOCKED"). Denormalized run-level totals so
     # the runs list (Phase 4) never has to aggregate the child tables.
     customer_count: int | None = None
     invoice_count: int | None = None
@@ -70,6 +71,15 @@ class Run(SQLModel, table=True):
     overdue_count: int | None = None
     total_outstanding: Decimal | None = Field(default=None, sa_type=MONEY)  # type: ignore[call-overload]
     exception_count: int | None = None
+
+    # Set only when status in ("PASSED", "BLOCKED") -- see control/gate.py.
+    # exception_row_rate is what drives the gate; distinct_invoice_rate is
+    # reported alongside per QA_PREP.md Q8's denominator ambiguity.
+    gate_threshold: Decimal | None = Field(default=None, sa_type=RATE)  # type: ignore[call-overload]
+    exception_row_rate: Decimal | None = Field(default=None, sa_type=RATE)  # type: ignore[call-overload]
+    distinct_invoices_affected: int | None = None
+    distinct_invoice_rate: Decimal | None = Field(default=None, sa_type=RATE)  # type: ignore[call-overload]
+    narrative: str | None = None
 
     events: list[RunEvent] = Relationship(back_populates="run", cascade_delete=True)
     exceptions: list[RunException] = Relationship(
