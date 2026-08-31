@@ -27,7 +27,7 @@ from zipfile import BadZipFile
 from openpyxl.utils.exceptions import InvalidFileException
 from sqlmodel import Session
 
-from app.collections.ai.fallback import render_summary
+from app.collections.ai.roles import summary_narrator
 from app.collections.calculate.ageing import ageing_bucket
 from app.collections.calculate.overdue import compute_positions, overdue_only
 from app.collections.calculate.regions import (
@@ -212,7 +212,7 @@ def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
         heaviest_region = (
             max(by_region, key=lambda r: by_region[r]) if by_region else None
         )
-        narrative = render_summary(
+        result = summary_narrator.narrate(
             source_filename=source_filename,
             report_date=str(report_date),
             invoice_count=len(dataset.invoices),
@@ -221,7 +221,13 @@ def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
             heaviest_region=heaviest_region,
             gate=gate,
         )
-        emit("summarise", "info", "SUMMARISE_COMPLETED", narrative)
+        emit(
+            "summarise",
+            "info",
+            "SUMMARISE_COMPLETED",
+            result.text,
+            {"summary_source": result.source},
+        )
 
         run.status = gate.status
         run.completed_at = get_datetime_utc()
@@ -235,7 +241,8 @@ def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
         run.exception_row_rate = gate.exception_row_rate
         run.distinct_invoices_affected = gate.distinct_invoices_affected
         run.distinct_invoice_rate = gate.distinct_invoice_rate
-        run.narrative = narrative
+        run.narrative = result.text
+        run.summary_source = result.source
         emit("persist", "info", "PERSIST_COMPLETED", "Run results saved.")
 
     except PipelineError as exc:

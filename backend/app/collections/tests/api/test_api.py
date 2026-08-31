@@ -104,6 +104,7 @@ def test_summary_endpoint(client: TestClient) -> None:
     assert body["gate_threshold"] == "0.0500"
     assert body["distinct_invoices_affected"] == 14
     assert "BLOCKED" in body["narrative"]
+    assert body["summary_source"] in ("ollama", "cloud", "fallback")
 
 
 def test_run_log_events_endpoint(client: TestClient) -> None:

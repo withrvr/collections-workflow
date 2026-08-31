@@ -80,6 +80,8 @@ class Run(SQLModel, table=True):
     distinct_invoices_affected: int | None = None
     distinct_invoice_rate: Decimal | None = Field(default=None, sa_type=RATE)  # type: ignore[call-overload]
     narrative: str | None = None
+    # "ollama" | "cloud" | "fallback" -- see ai/roles/summary_narrator.py.
+    summary_source: str | None = Field(default=None, max_length=16)
 
     events: list[RunEvent] = Relationship(back_populates="run", cascade_delete=True)
     exceptions: list[RunException] = Relationship(

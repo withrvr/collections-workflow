@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-31
+
+### Added
+
+- `ai/provider.py`: `call_ollama`/`call_cloud`, the LiteLLM seam --
+  local Ollama (`phi4-mini`) by default; a cloud model only if
+  `COLLECTIONS_CLOUD_LLM_MODEL` is explicitly set, never required.
+- `ai/guard.py`: `numbers_are_contained`, the post-generation numeric
+  containment check -- an LLM output containing a number never given to
+  it is rejected outright.
+- `ai/roles/summary_narrator.py`: `narrate()`, the three-rung fallback
+  chain (Ollama -> cloud -> deterministic template) for the run
+  narrative, numeric-guarded at every rung, never raises.
+- `ai/context.py`: `workbook_readme_markdown`, anydoc workbook-to-Markdown
+  conversion for LLM context only -- not consumed by any Phase 6 role
+  yet; ready for Phase 7/10.
+- `observability/metrics.py`: `llm_calls_total`, a plain in-process
+  counter -- Phase 6's done-when ("llm_calls_total shows local calls
+  succeeding"), formalized to real Prometheus in Phase 12.
+- `config.py`: `OLLAMA_API_BASE`/`OLLAMA_MODEL`/`CLOUD_LLM_MODEL`/
+  `LLM_TIMEOUT_SECONDS`, all environment-variable driven.
+- `models.py`: `Run.summary_source` (`"ollama"`/`"cloud"`/`"fallback"`).
+  `api/summary.py`, `api/schemas.py`: surfaced via `GET /collections/summary`.
+- `service.py`: `summarise` stage now calls `summary_narrator.narrate`
+  instead of `ai/fallback.render_summary` directly.
+- `compose.override.yml`: dev backend wired to reach Ollama at
+  `host.docker.internal:11434` (documented limitation: only works if
+  Ollama binds `0.0.0.0`, not the default loopback-only -- falls back
+  to the deterministic template correctly either way, verified).
+- 12 new tests (142 -> 154): `tests/ai/test_guard.py`,
+  `test_provider.py`, `test_summary_narrator.py` (real, unmocked local
+  Ollama calls, skipped gracefully if unreachable), `test_context.py`.
+- New dependencies: `litellm`, `firecrawl-anydoc`.
+
 ## [0.6.0] - 2026-08-31
 
 ### Added

@@ -36,6 +36,7 @@ def test_dataset_b_passes_the_control_gate(session: Session) -> None:
     assert run.exception_row_rate <= Decimal("0.05")
     assert run.narrative is not None
     assert "PASSED" in run.narrative
+    assert run.summary_source in ("ollama", "cloud", "fallback")
 
 
 def _events_for(session: Session, run_id: uuid.UUID) -> list[RunEvent]:

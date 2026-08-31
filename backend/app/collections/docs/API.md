@@ -4,7 +4,7 @@ Owns: every endpoint — method, path, params, response schema, status
 codes, error codes. Does not own: business rationale (see `README.md`),
 setup (see `DEVELOPMENT.md`).
 
-Status: **Phase 5 complete.** All endpoints mounted under
+Status: **Phase 6 complete.** All endpoints mounted under
 `/api/v1/collections`, no auth required. Response schemas:
 `app/collections/api/schemas.py`.
 
@@ -70,10 +70,12 @@ The run's numeric summary, region breakdown, and the control gate's
 "blocked payload" (QA_PREP.md Q7): `gate_threshold` (`0.05`),
 `exception_row_rate` (drives the gate), `distinct_invoices_affected` and
 `distinct_invoice_rate` (the alternate denominator, reported for
-transparency — see `ARCHITECTURE.md`'s control gate section), and
-`narrative`, the deterministic plain-English summary. All `null` if the
-run failed before `control` ran. `status` is `"PASSED"`, `"BLOCKED"`, or
-`"FAILED"`.
+transparency — see `ARCHITECTURE.md`'s control gate section), `narrative`
+(the plain-English summary), and `summary_source` — which of the
+three-rung LLM fallback chain actually produced it: `"ollama"`,
+`"cloud"`, or `"fallback"` (the deterministic template; see
+`ARCHITECTURE.md`'s LLM layer section). All `null` if the run failed
+before `control` ran. `status` is `"PASSED"`, `"BLOCKED"`, or `"FAILED"`.
 
 ```json
 {
@@ -83,6 +85,7 @@ run failed before `control` ran. `status` is `"PASSED"`, `"BLOCKED"`, or
   "gate_threshold": "0.0500", "exception_row_rate": "0.4722",
   "distinct_invoices_affected": 14, "distinct_invoice_rate": "0.3889",
   "narrative": "Run against dataset_a_original.xlsx as of 2026-07-31: 36 invoice(s) processed, 15 overdue totaling Rs 1,202,000.00 (West heaviest). 17 exception(s) found (47.2% of invoices, 14 distinct invoice(s) affected, 38.9%) -- BLOCKED: exceeds the 5% control threshold.",
+  "summary_source": "ollama",
   "by_region": [{"region": "West", "outstanding": "472000.00", "overdue_count": 5}, "..."]
 }
 ```

@@ -129,4 +129,5 @@ class SummaryOut(BaseModel):
     distinct_invoices_affected: int | None
     distinct_invoice_rate: Decimal | None
     narrative: str | None
+    summary_source: str | None  # "ollama" | "cloud" | "fallback"
     by_region: list[RegionBreakdownOut]

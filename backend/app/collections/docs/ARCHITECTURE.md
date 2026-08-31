@@ -4,7 +4,7 @@ Owns: components, data flow, why each decision was made, trade-offs, what
 breaks at scale. Does not own: how to run anything (see `DEVELOPMENT.md`),
 endpoint payloads (see `API.md`).
 
-Status: **Phase 5 complete.** Populated phase by phase as components land.
+Status: **Phase 6 complete.** Populated phase by phase as components land.
 
 ## Components
 
@@ -34,6 +34,18 @@ Status: **Phase 5 complete.** Populated phase by phase as components land.
   last rung of Phase 6's LLM fallback chain. Works with no network, no
   model -- every run gets a plain-English summary regardless of whether
   Ollama is even installed.
+- `ai/provider.py` (Phase 6): the LiteLLM seam -- `call_ollama`/
+  `call_cloud`, one HTTP call each, no fallback logic (that lives in
+  each role).
+- `ai/guard.py` (Phase 6): `numbers_are_contained`, the post-generation
+  numeric containment check -- see "The LLM layer" below.
+- `ai/roles/summary_narrator.py` (Phase 6): the three-rung fallback
+  chain (Ollama -> cloud if configured -> deterministic template) for
+  the run narrative, numeric-guarded at every rung.
+- `ai/context.py` (Phase 6): anydoc workbook-to-Markdown, for Phase 7/10
+  roles to consume -- not called by anything in Phase 6 itself.
+- `observability/metrics.py` (Phase 6, formalized in Phase 12): plain
+  in-process `llm_calls_total` counter for now.
 - `export/` (Phase 9+): not yet populated.
 
 ## Why `validate/schemas.py` is not Pandera
@@ -176,6 +188,66 @@ in-memory `calculate/` functions `scripts/reference_summary.py` uses.
 Agreement between the two (15 overdue invoices, ₹12,02,000, West
 heaviest) is real evidence the persistence layer is not silently
 dropping or double-counting a row, not the same arithmetic checked twice.
+
+## The LLM layer
+
+`ai/roles/summary_narrator.py`'s `narrate()` is the three-rung chain
+MASTER_PLAN.md section 9 names for Phase 6:
+
+1. **Local Ollama** (`ai/provider.py`'s `call_ollama`), model `phi4-mini`
+   via LiteLLM. The default and the only rung actually exercised without
+   extra configuration.
+2. **A configured cloud model** (`call_cloud`), only attempted if
+   `COLLECTIONS_CLOUD_LLM_MODEL` is set -- unset by default, and this
+   project never requires a cloud API key to run.
+3. **The deterministic Jinja template** (`ai/fallback.py`, built in
+   Phase 5). Cannot fail short of a programming bug -- there is no rung
+   4, because there does not need to be one.
+
+Every rung's raw output passes through `ai/guard.py`'s
+`numbers_are_contained` before it can be accepted: every number literal
+the model wrote must also appear in the prompt it was given. A rung that
+invents a number is rejected outright and the chain falls through to the
+next one -- the model narrates, it never computes (AGENTS.md), and this
+is the check that turns that rule into something enforced rather than
+merely intended. `summary_narrator.narrate()`'s prompt only ever
+contains the already-computed metrics dictionary (invoice/overdue
+counts, totals, the gate's rates) -- never raw sheet data, so there is
+nothing in the prompt for the model to selectively misreport from in the
+first place.
+
+Which rung actually produced a run's narrative is recorded on
+`Run.summary_source` (`"ollama"`/`"cloud"`/`"fallback"`) and surfaced via
+`GET /collections/summary` -- a reviewer can see directly whether a given
+run's summary came from the model or the safety net, never silently.
+
+`observability/metrics.py`'s `llm_calls_total` (a plain in-process
+counter for now; Phase 12 upgrades it to a real Prometheus `Counter` in
+place) is Phase 6's own proof of its done-when: local Ollama calls
+succeed and are counted, and since Ollama is local (no cloud round trip),
+this holds with the network disconnected -- verified directly by
+`tests/ai/test_summary_narrator.py` against a real, unmocked local model.
+
+### Docker Compose and Ollama
+
+The dev backend container is wired to reach Ollama at
+`http://host.docker.internal:11434` (`compose.override.yml`, with
+`extra_hosts: host-gateway` since `host.docker.internal` isn't automatic
+on native Docker Engine, only Docker Desktop). This only actually
+reaches Ollama if it is bound to `0.0.0.0`, not the default `127.0.0.1` --
+a container's loopback is always its own, isolated from the host's,
+regardless of WSL2 mirrored networking sharing host *interfaces* into
+WSL (mirrored networking does not extend into a container's separate
+network namespace). Set `OLLAMA_HOST=0.0.0.0` as an environment variable
+on the Ollama host and restart it to fix this -- the same fix pre-22H2
+WSL setups need for a different reason. Absent that, the Docker-run
+backend degrades to `summary_source: "fallback"` automatically and
+correctly (verified: `docker compose exec backend` reaches the API,
+gets a `PASSED`/`BLOCKED` run either way, just without the LLM rung) --
+this is the fallback chain working exactly as designed, not a bug.
+Running `pytest`/scripts natively via `uv run` (not inside the
+container) reaches Ollama directly with no such caveat, since WSL's own
+loopback genuinely is shared with Windows' under mirrored networking.
 
 ## The anydoc boundary
 
