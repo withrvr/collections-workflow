@@ -22,7 +22,7 @@ def get_overdue(session: SessionDep, run_id: uuid.UUID) -> OverdueOut:
     positions = session.exec(
         select(RunInvoicePosition).where(
             RunInvoicePosition.run_id == run_id,
-            RunInvoicePosition.is_overdue == True,  # noqa: E712
+            RunInvoicePosition.is_overdue,
         )
     ).all()
     total = sum((p.outstanding for p in positions), Decimal("0"))

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-31
+
+### Added
+
+- `control/gate.py`: `evaluate_gate`, the 5% exception-rate gate.
+  Reports both `exception_row_rate` (drives the gate) and
+  `distinct_invoice_rate` (QA_PREP.md Q8's denominator ambiguity,
+  resolved by reporting both rather than picking one silently).
+- `ai/fallback.py`: `render_summary`, a deterministic Jinja narrative --
+  no LLM, no network, the last rung of Phase 6's fallback chain, built
+  first so every run always gets a plain-English summary.
+- `models.py`: `Run` gains `gate_threshold`, `exception_row_rate`,
+  `distinct_invoices_affected`, `distinct_invoice_rate`, `narrative`.
+  `RunStatus` replaces the placeholder `COMPLETED` with the real
+  `PASSED`/`BLOCKED` outcomes.
+- `service.py`: wires the `control` and `summarise` stages into
+  `execute_run` between `calculate` and `persist`.
+- `api/summary.py`, `api/schemas.py`: `SummaryOut` carries the full
+  "blocked payload" -- the rate, both denominators, the threshold, the
+  narrative.
+- `scripts/make_fixtures.py`: generates `fixtures/dataset_b_clean.xlsx`
+  from dataset A by removing every row touched by any exception rule --
+  passes the gate by construction. MASTER_PLAN.md section 3's dataset C
+  (renamed columns) and D (corrupt file) are not built yet; nothing
+  before Phase 10 needs them.
+- 10 new tests (132 -> 142): `tests/control/test_gate.py` (threshold
+  boundary, zero-invoice edge case, row-rate/distinct-rate divergence),
+  `tests/ai/test_fallback.py`, and a direct proof of the Phase 5
+  done-when in `tests/persistence/test_service.py` -- dataset A's real
+  run blocks, dataset B's real run passes.
+
 ## [0.5.0] - 2026-08-31
 
 ### Added

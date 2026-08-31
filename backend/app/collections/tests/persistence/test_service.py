@@ -18,10 +18,24 @@ from app.collections.tests.ingest.workbook_builder import build_minimal_workbook
 FIXTURE_PATH = (
     Path(__file__).parent.parent.parent / "fixtures" / "dataset_a_original.xlsx"
 )
+DATASET_B_PATH = (
+    Path(__file__).parent.parent.parent / "fixtures" / "dataset_b_clean.xlsx"
+)
 
 # From docs/RULES.md's Summary table: 17 exception rows fire across the
 # 14 rules against dataset A.
 DATASET_A_EXCEPTION_COUNT = 17
+
+
+def test_dataset_b_passes_the_control_gate(session: Session) -> None:
+    """MASTER_PLAN.md Phase 5 done-when: dataset A blocks (see
+    test_successful_run_matches_reference_numbers), dataset B passes."""
+    run = service.execute_run(session, DATASET_B_PATH, "dataset_b_clean.xlsx")
+    assert run.status == "PASSED"
+    assert run.exception_row_rate is not None
+    assert run.exception_row_rate <= Decimal("0.05")
+    assert run.narrative is not None
+    assert "PASSED" in run.narrative
 
 
 def _events_for(session: Session, run_id: uuid.UUID) -> list[RunEvent]:
@@ -37,7 +51,7 @@ def _events_for(session: Session, run_id: uuid.UUID) -> list[RunEvent]:
 def test_successful_run_matches_reference_numbers(session: Session) -> None:
     run = service.execute_run(session, FIXTURE_PATH, "dataset_a_original.xlsx")
 
-    assert run.status == "COMPLETED"
+    assert run.status == "BLOCKED"
     assert run.error_code is None
     assert run.error_message is None
     assert run.customer_count == 25
@@ -78,9 +92,17 @@ def test_successful_run_emits_events_for_every_stage_in_order(session: Session) 
         "validate",
         "calculate",
         "calculate",
+        "control",
+        "control",
+        "summarise",
         "persist",
     ]
-    assert all(e.level == "info" for e in _events_for(session, run.id))
+    # dataset A blocks (see test_successful_run_matches_reference_numbers),
+    # so its control event is a warning, not an error -- the run itself
+    # still completes cleanly, it just doesn't pass the gate.
+    levels = {e.stage: e.level for e in _events_for(session, run.id)}
+    assert levels["control"] == "warning"
+    assert all(level == "info" for stage, level in levels.items() if stage != "control")
 
 
 def test_missing_sheet_produces_failed_run_with_readable_event(

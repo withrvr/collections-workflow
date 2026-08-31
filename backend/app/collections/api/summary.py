@@ -1,8 +1,9 @@
 """The management summary endpoint, including the control-gate blocked payload.
 
-Populated in Phase 4/5 (MASTER_PLAN.md). Phase 4 returns the numeric
-summary and region breakdown; Phase 5 layers the 5% control gate and its
-blocked payload on top of this same endpoint.
+Populated in Phase 4/5 (MASTER_PLAN.md). Phase 5 adds the 5% control
+gate's fields and the deterministic narrative on top of Phase 4's
+numeric summary and region breakdown -- see api/schemas.py's
+`SummaryOut` docstring for what the "blocked payload" actually is.
 """
 
 from __future__ import annotations
@@ -22,11 +23,6 @@ router = APIRouter(prefix="/summary", tags=["collections"])
 @router.get("/", response_model=SummaryOut)
 def get_summary(session: SessionDep, run_id: uuid.UUID) -> SummaryOut:
     run = get_run_or_404(session, run_id)
-    exception_rate = (
-        run.exception_count / run.invoice_count
-        if run.exception_count is not None and run.invoice_count
-        else None
-    )
     return SummaryOut(
         run_id=run_id,
         status=run.status,
@@ -37,6 +33,10 @@ def get_summary(session: SessionDep, run_id: uuid.UUID) -> SummaryOut:
         overdue_count=run.overdue_count,
         total_outstanding=run.total_outstanding,
         exception_count=run.exception_count,
-        exception_rate=exception_rate,
+        gate_threshold=run.gate_threshold,
+        exception_row_rate=run.exception_row_rate,
+        distinct_invoices_affected=run.distinct_invoices_affected,
+        distinct_invoice_rate=run.distinct_invoice_rate,
+        narrative=run.narrative,
         by_region=region_breakdown(session, run_id),
     )
