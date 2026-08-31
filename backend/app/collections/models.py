@@ -49,7 +49,7 @@ class Run(SQLModel, table=True):
     status: str = Field(default="PENDING", index=True, max_length=16)
     source_filename: str = Field(max_length=255)
     report_date: date
-    created_at: datetime | None = Field(
+    created_at: datetime = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
     )
