@@ -13,10 +13,17 @@ from collections.abc import Callable, Iterator
 from datetime import date
 
 from app.collections.contracts import CanonicalDataset, ExceptionRow
+from app.collections.validate import rules
 
 RuleFn = Callable[[CanonicalDataset, date], Iterator[ExceptionRow]]
 
-RULE_REGISTRY: dict[str, RuleFn] = {}
+RULE_REGISTRY: dict[str, RuleFn] = {
+    "E001": rules.check_e001_missing_due_date,
+    "E004": rules.check_e004_non_positive_invoice_amount,
+    "E011": rules.check_e011_cancelled_invoice,
+    "E012": rules.check_e012_credit_note_invoice,
+    "E013": rules.check_e013_duplicate_source_system_ref,
+}
 
 
 def run_all_rules(dataset: CanonicalDataset, report_date: date) -> list[ExceptionRow]:
