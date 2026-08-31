@@ -25,6 +25,7 @@ RULE_REGISTRY: dict[str, RuleFn] = {
     "E013": rules.check_e013_duplicate_source_system_ref,
     "E006": rules.check_e006_invalid_gstin_format,
     "E008": rules.check_e008_missing_gstin,
+    "E005": rules.check_e005_non_positive_payment_amount,
 }
 
 

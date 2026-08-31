@@ -27,6 +27,7 @@ which describes pipeline-stage health, not business weight.
 | E013 | Duplicate source system reference | warning | 2 |
 | E006 | Invalid GSTIN format | warning | 1 |
 | E008 | Missing GSTIN | warning | 1 |
+| E005 | Non-positive payment amount | error | 2 |
 
 ## E001 — Missing due date
 
@@ -96,3 +97,13 @@ doesn't block collection reporting.
 **Why:** same master-data-quality rationale as E006, distinguished
 because "missing" and "malformed" call for different remediation (get
 the value vs. fix the value).
+
+## E005 — Non-positive payment amount
+
+**Condition:** `Payment.payment_amount <= 0`.
+**Fires on:** PAY-2018 (0), PAY-2029 (-5,000).
+**Excludes:** the payment from the valid-payments total for its invoice
+(`calculate/outstanding.py`'s `is_valid_payment` requires `> 0`).
+**Why:** a zero or negative payment amount cannot reduce an outstanding
+balance; it is either a reversal that needs its own record or a
+recording error.
