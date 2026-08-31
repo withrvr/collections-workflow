@@ -1,6 +1,12 @@
 from decimal import Decimal
+from pathlib import Path
+
+import pytest
 
 from app.collections.contracts import CanonicalDataset
+from app.collections.ingest.loader import load_workbook
+from app.collections.ingest.resolver import SheetMissingError
+from app.collections.tests.ingest.workbook_builder import build_minimal_workbook
 
 
 def test_row_counts(dataset: CanonicalDataset) -> None:
@@ -50,3 +56,17 @@ def test_cancelled_and_credit_note_status_preserved(dataset: CanonicalDataset) -
     credit_note = next(i for i in dataset.invoices if i.invoice_id == "INV-1030")
     assert cancelled.status == "Cancelled"
     assert credit_note.status == "Credit Note"
+
+
+def test_missing_sheet_raises_sheet_missing_error_not_column_error(
+    tmp_path: Path,
+) -> None:
+    """A wholly absent sheet is a different failure than a present sheet
+    missing columns -- see resolver.py's SheetMissingError docstring."""
+    broken_path = tmp_path / "missing_sheet.xlsx"
+    build_minimal_workbook(broken_path, omit_sheets={"Region_Mapping"})
+
+    with pytest.raises(SheetMissingError) as exc_info:
+        load_workbook(broken_path)
+    assert exc_info.value.sheet_name == "Region_Mapping"
+    assert str(exc_info.value) == "The workbook has no 'Region_Mapping' sheet."

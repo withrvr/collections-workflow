@@ -5,8 +5,10 @@ excluded amounts, must tie" as checkable properties.
 
 These are internal-consistency checks -- definitionally true given
 compute_outstanding's own max(0, ...) floor -- not the independently
-derived recompute promised in MASTER_PLAN.md section 10 (that's Phase
-3+'s test_sql_crosscheck.py, once persistence exists to recompute from).
+derived recompute promised in MASTER_PLAN.md section 10. That recompute
+is tests/persistence/test_sql_crosscheck.py (Phase 3): a SQL SUM/GROUP BY
+over persisted RunInvoicePosition rows, a genuinely different code path
+from this module's in-memory Python arithmetic.
 
 Note on the invoice-amount identity: an earlier design draft assumed
 "overpaid" (paid exceeding invoice_amount) is nonzero only for the E014
