@@ -206,3 +206,46 @@ def check_e009_payment_after_report_date(dataset: CanonicalDataset, report_date:
                 customer_id=payment.customer_id,
                 detail={"payment_date": payment.payment_date, "report_date": report_date},
             )
+
+
+# ---------------------------------------------------------------------------
+# Cross-reference rules
+# ---------------------------------------------------------------------------
+
+
+def check_e002_unknown_customer_reference(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    """Checked against both invoices and payments -- either kind of record
+    can carry a dangling Customer_ID. A payment that also references an
+    unknown invoice (e.g. PAY-2025) fires this rule independently of E003:
+    each broken reference is its own true, actionable fact."""
+    known_customer_ids = {c.customer_id for c in dataset.customers}
+    for invoice in dataset.invoices:
+        if invoice.customer_id not in known_customer_ids:
+            yield ExceptionRow(
+                rule_code="E002",
+                category="Unknown customer reference",
+                message=(
+                    f"Invoice {invoice.invoice_id} references Customer_ID "
+                    f"'{invoice.customer_id}', which is not in the Customers sheet. "
+                    "Excluded from the overdue report."
+                ),
+                severity="error",
+                invoice_id=invoice.invoice_id,
+                customer_id=invoice.customer_id,
+            )
+    for payment in dataset.payments:
+        if payment.customer_id not in known_customer_ids:
+            yield ExceptionRow(
+                rule_code="E002",
+                category="Unknown customer reference",
+                message=(
+                    f"Payment {payment.payment_id} references Customer_ID "
+                    f"'{payment.customer_id}', which is not in the Customers sheet."
+                ),
+                severity="error",
+                payment_id=payment.payment_id,
+                invoice_id=payment.invoice_id,
+                customer_id=payment.customer_id,
+            )

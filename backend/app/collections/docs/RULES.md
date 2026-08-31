@@ -29,6 +29,7 @@ which describes pipeline-stage health, not business weight.
 | E008 | Missing GSTIN | warning | 1 |
 | E005 | Non-positive payment amount | error | 2 |
 | E009 | Payment after report date | warning | 1 |
+| E002 | Unknown customer reference (invoice or payment) | error | 2 |
 
 ## E001 — Missing due date
 
@@ -121,3 +122,17 @@ enumerated exception categories list this explicitly. It is expected
 business activity, not bad data — hence `warning`, not `error` — but a
 reviewer looking at why a position didn't move needs to see it, not
 infer it.
+
+## E002 — Unknown customer reference
+
+**Condition:** `customer_id` on an invoice *or* a payment is not present
+in the Customers sheet. One rule, checked against both sheets, since
+either kind of record can carry a dangling customer reference.
+**Fires on:** INV-1026 (Customer_ID C999), PAY-2025 (Customer_ID C999).
+PAY-2025 also fires E003 independently (its Invoice_ID is unknown too) —
+deliberately two separate rows rather than one combined flag, so each
+broken reference is visible regardless of whether the other were fixed.
+**Excludes:** the invoice from the overdue report; a payment referencing
+an unknown customer is also, incidentally, unresolvable (see E003).
+**Why:** cannot attribute a Region or a credit position to a customer
+that doesn't exist in the master data.
