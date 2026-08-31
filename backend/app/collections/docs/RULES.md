@@ -27,6 +27,8 @@ which describes pipeline-stage health, not business weight.
 | E013 | Duplicate source system reference | warning | 2 |
 | E006 | Invalid GSTIN format | warning | 1 |
 | E008 | Missing GSTIN | warning | 1 |
+| E005 | Non-positive payment amount | error | 2 |
+| E009 | Payment after report date | warning | 1 |
 
 ## E001 — Missing due date
 
@@ -96,3 +98,26 @@ doesn't block collection reporting.
 **Why:** same master-data-quality rationale as E006, distinguished
 because "missing" and "malformed" call for different remediation (get
 the value vs. fix the value).
+
+## E005 — Non-positive payment amount
+
+**Condition:** `Payment.payment_amount <= 0`.
+**Fires on:** PAY-2018 (0), PAY-2029 (-5,000).
+**Excludes:** the payment from the valid-payments total for its invoice
+(`calculate/outstanding.py`'s `is_valid_payment` requires `> 0`).
+**Why:** a zero or negative payment amount cannot reduce an outstanding
+balance; it is either a reversal that needs its own record or a
+recording error.
+
+## E009 — Payment after report date
+
+**Condition:** `Payment.payment_date > report_date`.
+**Fires on:** PAY-2020 (2026-08-02, report date 2026-07-31).
+**Excludes:** the payment from this period's valid-payments total
+(`calculate/outstanding.py`'s `is_valid_payment` requires `<=
+report_date`).
+**Why flagged, not just silently excluded:** the workbook's own
+enumerated exception categories list this explicitly. It is expected
+business activity, not bad data — hence `warning`, not `error` — but a
+reviewer looking at why a position didn't move needs to see it, not
+infer it.
