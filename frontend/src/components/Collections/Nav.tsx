@@ -10,9 +10,12 @@ const links = [
 export function CollectionsNav() {
   return (
     <nav className="mb-6 flex items-center gap-1 border-b pb-3">
-      <span className="mr-4 text-sm font-semibold text-muted-foreground">
+      <Link
+        to="/"
+        className="mr-4 text-sm font-semibold text-muted-foreground hover:text-foreground"
+      >
         Collections
-      </span>
+      </Link>
       {links.map((link) => (
         <Link
           key={link.to}
