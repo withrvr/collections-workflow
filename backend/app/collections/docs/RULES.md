@@ -32,6 +32,7 @@ which describes pipeline-stage health, not business weight.
 | E002 | Unknown customer reference (invoice or payment) | error | 2 |
 | E003 | Unknown invoice reference | error | 1 |
 | E007 | Payment-to-invoice customer mismatch | error | 1 |
+| E010 | Payment before invoice date | warning | 1 |
 
 ## E001 — Missing due date
 
@@ -163,3 +164,15 @@ still shows overdue rather than being credited with someone else's cash.
 Q11):** the payment is flagged rather than reassigned, since reassignment
 would be a silent data correction moving cash between ledgers on a guess.
 Owner: Accounts Receivable.
+
+## E010 — Payment before invoice date
+
+**Condition:** `Payment.payment_date < Invoice.invoice_date` (only when
+the invoice resolves — see E003).
+**Fires on:** PAY-2027 (2026-06-05) against INV-1004 (invoice date
+2026-06-10).
+**Does NOT exclude** the payment from `compute_outstanding` — see
+README.md Assumptions; this is a data-quality-only flag.
+**Why:** worth a human's eye (possibly a misdated invoice or a
+pre-payment against a purchase order), but the workbook doesn't
+authorize excluding it, so the calculation still counts it in full.

@@ -300,3 +300,29 @@ def check_e007_payment_invoice_customer_mismatch(
                     "invoice_customer_id": invoice.customer_id,
                 },
             )
+
+
+def check_e010_payment_before_invoice_date(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    invoices_by_id = {i.invoice_id: i for i in dataset.invoices}
+    for payment in dataset.payments:
+        invoice = invoices_by_id.get(payment.invoice_id)
+        if invoice is None:
+            continue  # unresolved reference is E003's concern, not this rule's
+        if payment.payment_date < invoice.invoice_date:
+            yield ExceptionRow(
+                rule_code="E010",
+                category="Payment before invoice date",
+                message=(
+                    f"Payment {payment.payment_id} ({payment.payment_date}) is dated "
+                    f"before its own invoice {invoice.invoice_id}'s invoice date "
+                    f"({invoice.invoice_date}). Still counted in full toward "
+                    "outstanding -- see README.md Assumptions."
+                ),
+                severity="warning",
+                payment_id=payment.payment_id,
+                invoice_id=invoice.invoice_id,
+                customer_id=payment.customer_id,
+                detail={"payment_date": payment.payment_date, "invoice_date": invoice.invoice_date},
+            )

@@ -30,6 +30,7 @@ RULE_REGISTRY: dict[str, RuleFn] = {
     "E002": rules.check_e002_unknown_customer_reference,
     "E003": rules.check_e003_unknown_invoice_reference,
     "E007": rules.check_e007_payment_invoice_customer_mismatch,
+    "E010": rules.check_e010_payment_before_invoice_date,
 }
 
 
