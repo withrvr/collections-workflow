@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
+from typing import Literal
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,3 +65,31 @@ class CanonicalDataset:
     payments: list[CanonicalPayment]
     region_map: list[RegionMap]
     load_warnings: list[str] = field(default_factory=list)
+
+
+Severity = Literal["warning", "error"]
+
+
+@dataclass(frozen=True, slots=True)
+class ExceptionRow:
+    """One data-quality or business-rule finding, per docs/RULES.md.
+
+    `severity` is a business-weight judgement ("error" = a real rupee
+    amount is excluded from a downstream figure the reader would
+    otherwise trust at face value; "warning" = the money is already
+    handled correctly, but the fact still merits review). This is a
+    different vocabulary from the pipeline-stage `level` on run_events
+    (Phase 3) -- do not conflate the two.
+
+    `detail` carries native Decimal/date/str values, not pre-stringified
+    ones -- JSON serialization for persistence is Phase 3's concern.
+    """
+
+    rule_code: str
+    category: str
+    message: str
+    severity: Severity
+    invoice_id: str | None = None
+    payment_id: str | None = None
+    customer_id: str | None = None
+    detail: dict[str, object] = field(default_factory=dict)

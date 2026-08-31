@@ -1,4 +1,32 @@
-"""Runs all rules against a loaded workbook and emits ExceptionRow[].
+"""Runs all registered rules against a loaded workbook and emits ExceptionRow[].
 
-Built in Phase 2 (MASTER_PLAN.md).
+RULE_REGISTRY is built up incrementally, one entry per rule, in the same
+commit as the rule function itself (see validate/rules.py). This is what
+lets tests/validate/test_coverage.py iterate the registry instead of
+hardcoding rule names -- the coverage test can never drift from the
+catalogue because it never names a rule directly.
 """
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterator
+from datetime import date
+
+from app.collections.contracts import CanonicalDataset, ExceptionRow
+
+RuleFn = Callable[[CanonicalDataset, date], Iterator[ExceptionRow]]
+
+RULE_REGISTRY: dict[str, RuleFn] = {}
+
+
+def run_all_rules(dataset: CanonicalDataset, report_date: date) -> list[ExceptionRow]:
+    return [row for rule_fn in RULE_REGISTRY.values() for row in rule_fn(dataset, report_date)]
+
+
+def exceptions_by_rule(dataset: CanonicalDataset, report_date: date) -> dict[str, list[ExceptionRow]]:
+    """Grouped view, keyed by rule code -- used by the coverage test and,
+    later, control/gate.py and the exceptions API filter."""
+    grouped: dict[str, list[ExceptionRow]] = {code: [] for code in RULE_REGISTRY}
+    for row in run_all_rules(dataset, report_date):
+        grouped.setdefault(row.rule_code, []).append(row)
+    return grouped

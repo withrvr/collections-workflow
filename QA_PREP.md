@@ -216,10 +216,13 @@ is the deliverable.
 **20. If this went to production, what would you change?**
 
 Four things, in order. APScheduler moves to Celery Beat or a Kubernetes CronJob
-once more than one worker exists. Pandera covers structural checks today, but a
-managed observability layer would replace bespoke trend detection. The exception
-explainer gains a human approval queue and becomes remediation rather than
-advice. And payment application moves from invoice-level to a proper cash
+once more than one worker exists. Structural checks today are type coercion at
+load time plus declarative schema-shape constants (see ARCHITECTURE.md for why
+that's Pandera-shaped work without the Pandera dependency); a managed
+observability layer would replace bespoke trend detection, and Pandera would be
+the natural upgrade if ingestion ever moved to a DataFrame-based pipeline. The
+exception explainer gains a human approval queue and becomes remediation rather
+than advice. And payment application moves from invoice-level to a proper cash
 application matcher, which is the hardest and most valuable piece in commercial
 AR platforms and where E007 actually comes from.
 
