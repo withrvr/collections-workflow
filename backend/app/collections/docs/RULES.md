@@ -26,6 +26,7 @@ which describes pipeline-stage health, not business weight.
 | E012 | Credit Note invoice | warning | 1 |
 | E013 | Duplicate source system reference | warning | 2 |
 | E006 | Invalid GSTIN format | warning | 1 |
+| E008 | Missing GSTIN | warning | 1 |
 
 ## E001 — Missing due date
 
@@ -86,3 +87,12 @@ limitation, not an oversight (see README.md's weakest-part discussion).
 math.
 **Why:** flags master-data quality for whoever owns Customer records;
 doesn't block collection reporting.
+
+## E008 — Missing GSTIN
+
+**Condition:** `Customer.gstin is None`.
+**Fires on:** C025.
+**Excludes:** nothing downstream.
+**Why:** same master-data-quality rationale as E006, distinguished
+because "missing" and "malformed" call for different remediation (get
+the value vs. fix the value).

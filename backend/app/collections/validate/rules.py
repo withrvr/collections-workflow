@@ -44,6 +44,20 @@ def check_e006_invalid_gstin_format(
             )
 
 
+def check_e008_missing_gstin(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    for customer in dataset.customers:
+        if customer.gstin is None:
+            yield ExceptionRow(
+                rule_code="E008",
+                category="Missing GSTIN",
+                message=f"Customer {customer.customer_id} has no GSTIN on file.",
+                severity="warning",
+                customer_id=customer.customer_id,
+            )
+
+
 # ---------------------------------------------------------------------------
 # Invoice-only rules
 # ---------------------------------------------------------------------------
