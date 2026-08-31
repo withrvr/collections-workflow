@@ -18,6 +18,12 @@ import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
+import { Route as CollectionsExceptionsRouteImport } from './routes/collections/exceptions'
+import { Route as CollectionsMappingRouteImport } from './routes/collections/mapping'
+import { Route as CollectionsRunDetailRouteImport } from './routes/collections/run-detail'
+import { Route as CollectionsRunsRouteImport } from './routes/collections/runs'
+import { Route as CollectionsSummaryRouteImport } from './routes/collections/summary'
+import { Route as CollectionsUploadRouteImport } from './routes/collections/upload'
 
 const LayoutRoute = LayoutRouteImport.update({
   id: '/_layout',
@@ -63,6 +69,36 @@ const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => LayoutRoute,
 } as any)
+const CollectionsExceptionsRoute = CollectionsExceptionsRouteImport.update({
+  id: '/collections/exceptions',
+  path: '/collections/exceptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionsMappingRoute = CollectionsMappingRouteImport.update({
+  id: '/collections/mapping',
+  path: '/collections/mapping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionsRunDetailRoute = CollectionsRunDetailRouteImport.update({
+  id: '/collections/run-detail',
+  path: '/collections/run-detail',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionsRunsRoute = CollectionsRunsRouteImport.update({
+  id: '/collections/runs',
+  path: '/collections/runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionsSummaryRoute = CollectionsSummaryRouteImport.update({
+  id: '/collections/summary',
+  path: '/collections/summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionsUploadRoute = CollectionsUploadRouteImport.update({
+  id: '/collections/upload',
+  path: '/collections/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof LayoutIndexRoute
@@ -73,6 +109,12 @@ export interface FileRoutesByFullPath {
   '/admin': typeof LayoutAdminRoute
   '/items': typeof LayoutItemsRoute
   '/settings': typeof LayoutSettingsRoute
+  '/collections/exceptions': typeof CollectionsExceptionsRoute
+  '/collections/mapping': typeof CollectionsMappingRoute
+  '/collections/run-detail': typeof CollectionsRunDetailRoute
+  '/collections/runs': typeof CollectionsRunsRoute
+  '/collections/summary': typeof CollectionsSummaryRoute
+  '/collections/upload': typeof CollectionsUploadRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -82,6 +124,12 @@ export interface FileRoutesByTo {
   '/admin': typeof LayoutAdminRoute
   '/items': typeof LayoutItemsRoute
   '/settings': typeof LayoutSettingsRoute
+  '/collections/exceptions': typeof CollectionsExceptionsRoute
+  '/collections/mapping': typeof CollectionsMappingRoute
+  '/collections/run-detail': typeof CollectionsRunDetailRoute
+  '/collections/runs': typeof CollectionsRunsRoute
+  '/collections/summary': typeof CollectionsSummaryRoute
+  '/collections/upload': typeof CollectionsUploadRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
@@ -94,6 +142,12 @@ export interface FileRoutesById {
   '/_layout/admin': typeof LayoutAdminRoute
   '/_layout/items': typeof LayoutItemsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
+  '/collections/exceptions': typeof CollectionsExceptionsRoute
+  '/collections/mapping': typeof CollectionsMappingRoute
+  '/collections/run-detail': typeof CollectionsRunDetailRoute
+  '/collections/runs': typeof CollectionsRunsRoute
+  '/collections/summary': typeof CollectionsSummaryRoute
+  '/collections/upload': typeof CollectionsUploadRoute
   '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -107,6 +161,12 @@ export interface FileRouteTypes {
     | '/admin'
     | '/items'
     | '/settings'
+    | '/collections/exceptions'
+    | '/collections/mapping'
+    | '/collections/run-detail'
+    | '/collections/runs'
+    | '/collections/summary'
+    | '/collections/upload'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -116,6 +176,12 @@ export interface FileRouteTypes {
     | '/admin'
     | '/items'
     | '/settings'
+    | '/collections/exceptions'
+    | '/collections/mapping'
+    | '/collections/run-detail'
+    | '/collections/runs'
+    | '/collections/summary'
+    | '/collections/upload'
     | '/'
   id:
     | '__root__'
@@ -127,6 +193,12 @@ export interface FileRouteTypes {
     | '/_layout/admin'
     | '/_layout/items'
     | '/_layout/settings'
+    | '/collections/exceptions'
+    | '/collections/mapping'
+    | '/collections/run-detail'
+    | '/collections/runs'
+    | '/collections/summary'
+    | '/collections/upload'
     | '/_layout/'
   fileRoutesById: FileRoutesById
 }
@@ -136,6 +208,12 @@ export interface RootRouteChildren {
   RecoverPasswordRoute: typeof RecoverPasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  CollectionsExceptionsRoute: typeof CollectionsExceptionsRoute
+  CollectionsMappingRoute: typeof CollectionsMappingRoute
+  CollectionsRunDetailRoute: typeof CollectionsRunDetailRoute
+  CollectionsRunsRoute: typeof CollectionsRunsRoute
+  CollectionsSummaryRoute: typeof CollectionsSummaryRoute
+  CollectionsUploadRoute: typeof CollectionsUploadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -203,6 +281,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSettingsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/collections/exceptions': {
+      id: '/collections/exceptions'
+      path: '/collections/exceptions'
+      fullPath: '/collections/exceptions'
+      preLoaderRoute: typeof CollectionsExceptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collections/mapping': {
+      id: '/collections/mapping'
+      path: '/collections/mapping'
+      fullPath: '/collections/mapping'
+      preLoaderRoute: typeof CollectionsMappingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collections/run-detail': {
+      id: '/collections/run-detail'
+      path: '/collections/run-detail'
+      fullPath: '/collections/run-detail'
+      preLoaderRoute: typeof CollectionsRunDetailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collections/runs': {
+      id: '/collections/runs'
+      path: '/collections/runs'
+      fullPath: '/collections/runs'
+      preLoaderRoute: typeof CollectionsRunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collections/summary': {
+      id: '/collections/summary'
+      path: '/collections/summary'
+      fullPath: '/collections/summary'
+      preLoaderRoute: typeof CollectionsSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collections/upload': {
+      id: '/collections/upload'
+      path: '/collections/upload'
+      fullPath: '/collections/upload'
+      preLoaderRoute: typeof CollectionsUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -229,6 +349,12 @@ const rootRouteChildren: RootRouteChildren = {
   RecoverPasswordRoute: RecoverPasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  CollectionsExceptionsRoute: CollectionsExceptionsRoute,
+  CollectionsMappingRoute: CollectionsMappingRoute,
+  CollectionsRunDetailRoute: CollectionsRunDetailRoute,
+  CollectionsRunsRoute: CollectionsRunsRoute,
+  CollectionsSummaryRoute: CollectionsSummaryRoute,
+  CollectionsUploadRoute: CollectionsUploadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
