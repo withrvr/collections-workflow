@@ -24,6 +24,7 @@ which describes pipeline-stage health, not business weight.
 | E004 | Non-positive invoice amount | error | 1 |
 | E011 | Cancelled invoice | warning | 1 |
 | E012 | Credit Note invoice | warning | 1 |
+| E013 | Duplicate source system reference | warning | 2 |
 
 ## E001 — Missing due date
 
@@ -58,3 +59,16 @@ nothing silently disappears from the picture.
 **Condition:** `Invoice.status == "Credit Note"`.
 **Fires on:** INV-1030.
 Same treatment and rationale as E011.
+
+## E013 — Duplicate source system reference
+
+**Condition:** two or more invoices share a non-blank
+`Source_System_Ref`. Blank references are not compared against each
+other — a shared "no reference recorded" is not a duplicate.
+**Fires on:** INV-1011 and INV-1031, both `EMP-SO-0011`. Emitted as one
+row per affected invoice (two rows total), each naming the sibling(s).
+**Excludes:** nothing — both invoices remain in the overdue report
+independently.
+**Why:** a shared ERP reference across two different invoice records can
+mean a duplicate entry or a legitimately split sales order; either way it
+needs investigation, not an automatic guess.

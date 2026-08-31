@@ -8,11 +8,12 @@ need the date. Full catalogue with rationale: docs/RULES.md.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 
-from app.collections.contracts import CanonicalDataset, ExceptionRow
+from app.collections.contracts import CanonicalDataset, CanonicalInvoice, ExceptionRow
 
 # ---------------------------------------------------------------------------
 # Invoice-only rules
@@ -89,4 +90,31 @@ def check_e012_credit_note_invoice(
                 severity="warning",
                 invoice_id=invoice.invoice_id,
                 customer_id=invoice.customer_id,
+            )
+
+
+def check_e013_duplicate_source_system_ref(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    groups: dict[str, list[CanonicalInvoice]] = defaultdict(list)
+    for invoice in dataset.invoices:
+        if invoice.source_system_ref is not None:
+            groups[invoice.source_system_ref].append(invoice)
+    for source_ref, invoices in groups.items():
+        if len(invoices) <= 1:
+            continue
+        for invoice in invoices:
+            siblings = [i.invoice_id for i in invoices if i.invoice_id != invoice.invoice_id]
+            yield ExceptionRow(
+                rule_code="E013",
+                category="Duplicate source system reference",
+                message=(
+                    f"Invoice {invoice.invoice_id} shares Source_System_Ref "
+                    f"'{source_ref}' with {', '.join(siblings)}. Needs investigation: "
+                    "could be a duplicate entry or a legitimately split sales order."
+                ),
+                severity="warning",
+                invoice_id=invoice.invoice_id,
+                customer_id=invoice.customer_id,
+                detail={"source_system_ref": source_ref, "duplicate_with": siblings},
             )
