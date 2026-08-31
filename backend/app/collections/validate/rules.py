@@ -187,3 +187,22 @@ def check_e005_non_positive_payment_amount(
                 customer_id=payment.customer_id,
                 detail={"payment_amount": payment.payment_amount},
             )
+
+
+def check_e009_payment_after_report_date(dataset: CanonicalDataset, report_date: date) -> Iterator[ExceptionRow]:
+    for payment in dataset.payments:
+        if payment.payment_date > report_date:
+            yield ExceptionRow(
+                rule_code="E009",
+                category="Payment after report date",
+                message=(
+                    f"Payment {payment.payment_id} ({payment.payment_date}) is dated "
+                    f"after the report date ({report_date}). It does not reduce "
+                    f"invoice {payment.invoice_id}'s position as of this report."
+                ),
+                severity="warning",
+                invoice_id=payment.invoice_id,
+                payment_id=payment.payment_id,
+                customer_id=payment.customer_id,
+                detail={"payment_date": payment.payment_date, "report_date": report_date},
+            )
