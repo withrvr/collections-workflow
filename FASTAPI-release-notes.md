@@ -1,3 +1,8 @@
+> **This is `fastapi/full-stack-fastapi-template`'s own upstream release
+> history**, carried over from the base commit — not this project's
+> changelog. For the ERP Collection Reporting Workflow's own history, see
+> [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+
 # Release Notes
 
 ## Latest Changes

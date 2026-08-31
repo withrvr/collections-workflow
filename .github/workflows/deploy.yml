@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths-ignore:
-      - release-notes.md
+      - FASTAPI-release-notes.md
   workflow_dispatch:
 
 permissions:
