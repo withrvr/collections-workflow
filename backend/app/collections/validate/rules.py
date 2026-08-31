@@ -54,3 +54,21 @@ def check_e004_non_positive_invoice_amount(
                 customer_id=invoice.customer_id,
                 detail={"invoice_amount": invoice.invoice_amount},
             )
+
+
+def check_e011_cancelled_invoice(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    for invoice in dataset.invoices:
+        if invoice.status == "Cancelled":
+            yield ExceptionRow(
+                rule_code="E011",
+                category="Cancelled invoice",
+                message=(
+                    f"Invoice {invoice.invoice_id} is Cancelled. Excluded from the "
+                    "overdue report; shown here so nothing silently disappears."
+                ),
+                severity="warning",
+                invoice_id=invoice.invoice_id,
+                customer_id=invoice.customer_id,
+            )
