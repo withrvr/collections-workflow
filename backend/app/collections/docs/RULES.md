@@ -23,6 +23,7 @@ which describes pipeline-stage health, not business weight.
 | E001 | Missing due date | error | 1 |
 | E004 | Non-positive invoice amount | error | 1 |
 | E011 | Cancelled invoice | warning | 1 |
+| E012 | Credit Note invoice | warning | 1 |
 
 ## E001 — Missing due date
 
@@ -51,3 +52,9 @@ it should not silently net into the overdue total.
 `ELIGIBLE_STATUS`).
 **Why:** correct-by-design exclusion, not defective data — shown here so
 nothing silently disappears from the picture.
+
+## E012 — Credit Note invoice
+
+**Condition:** `Invoice.status == "Credit Note"`.
+**Fires on:** INV-1030.
+Same treatment and rationale as E011.

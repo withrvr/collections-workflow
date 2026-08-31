@@ -72,3 +72,21 @@ def check_e011_cancelled_invoice(
                 invoice_id=invoice.invoice_id,
                 customer_id=invoice.customer_id,
             )
+
+
+def check_e012_credit_note_invoice(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    for invoice in dataset.invoices:
+        if invoice.status == "Credit Note":
+            yield ExceptionRow(
+                rule_code="E012",
+                category="Credit Note invoice",
+                message=(
+                    f"Invoice {invoice.invoice_id} is a Credit Note. Excluded from "
+                    "the overdue report; shown here so nothing silently disappears."
+                ),
+                severity="warning",
+                invoice_id=invoice.invoice_id,
+                customer_id=invoice.customer_id,
+            )
