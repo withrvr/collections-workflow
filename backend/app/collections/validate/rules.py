@@ -14,6 +14,7 @@ from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 
+from app.collections.calculate.outstanding import index_payments_by_invoice, valid_payments_total
 from app.collections.contracts import CanonicalDataset, CanonicalInvoice, ExceptionRow
 
 # 2-digit state code, 10-char PAN, entity code digit, literal Z, checksum char.
@@ -325,4 +326,39 @@ def check_e010_payment_before_invoice_date(
                 invoice_id=invoice.invoice_id,
                 customer_id=payment.customer_id,
                 detail={"payment_date": payment.payment_date, "invoice_date": invoice.invoice_date},
+            )
+
+
+def check_e014_overpayment(dataset: CanonicalDataset, report_date: date) -> Iterator[ExceptionRow]:
+    """Not on the assessment's required list -- added because the data called
+    for it (see QA_PREP.md Q5). Reuses outstanding.py's own valid_payments_total
+    so this rule and the real calculation can never disagree about what counts
+    as a valid payment. Guards invoice_amount > 0 first, to avoid a spurious
+    fire against an already-E004-flagged negative-amount invoice with zero
+    payments against it. Evaluates all invoices regardless of status -- an
+    overpayment against a Cancelled invoice is just as much an AR problem."""
+    payments_by_invoice = index_payments_by_invoice(dataset.payments)
+    for invoice in dataset.invoices:
+        if invoice.invoice_amount <= Decimal("0"):
+            continue
+        paid = valid_payments_total(invoice, payments_by_invoice, report_date)
+        if paid > invoice.invoice_amount:
+            overpaid = paid - invoice.invoice_amount
+            yield ExceptionRow(
+                rule_code="E014",
+                category="Overpayment",
+                message=(
+                    f"Invoice {invoice.invoice_id} has valid payments totalling "
+                    f"{paid}, exceeding its amount of {invoice.invoice_amount} by "
+                    f"{overpaid}. Outstanding is floored at zero rather than shown "
+                    "as negative/credit."
+                ),
+                severity="warning",
+                invoice_id=invoice.invoice_id,
+                customer_id=invoice.customer_id,
+                detail={
+                    "invoice_amount": invoice.invoice_amount,
+                    "valid_paid": paid,
+                    "overpaid": overpaid,
+                },
             )

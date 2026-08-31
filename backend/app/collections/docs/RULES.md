@@ -3,10 +3,11 @@
 Owns: the exception rule catalogue, single source of truth for E001-E014.
 Does not own: anything that isn't a rule.
 
-Status: **Phase 2 in progress.** Rules are implemented and documented
-together — this file is the single source of truth for the catalogue and
-must match `backend/app/collections/validate/rules.py` exactly. Updated
-incrementally, one rule per commit, as each lands.
+Status: **14/14 rules implemented** in `validate/rules.py`, registered in
+`validate/engine.py`. Coverage asserted in
+`tests/validate/test_coverage.py` (lands in the next PR, along with the
+reconciliation tests). This file is the single source of truth for the
+catalogue and must match the code exactly.
 
 ## Severity
 
@@ -33,6 +34,7 @@ which describes pipeline-stage health, not business weight.
 | E003 | Unknown invoice reference | error | 1 |
 | E007 | Payment-to-invoice customer mismatch | error | 1 |
 | E010 | Payment before invoice date | warning | 1 |
+| E014 | Overpayment (payments exceed invoice amount) | warning | 1 |
 
 ## E001 — Missing due date
 
@@ -176,3 +178,31 @@ README.md Assumptions; this is a data-quality-only flag.
 **Why:** worth a human's eye (possibly a misdated invoice or a
 pre-payment against a purchase order), but the workbook doesn't
 authorize excluding it, so the calculation still counts it in full.
+
+## E014 — Overpayment (payments exceeding invoice amount)
+
+**Condition:** sum of valid payments for an invoice (the same
+`valid_payments_total` the calculator itself uses) exceeds
+`Invoice.invoice_amount`.
+**Fires on:** INV-1007 — invoice amount 88,000; PAY-2008 (30,000) +
+PAY-2028 (80,000) = 110,000, an overpayment of 22,000.
+**Not on the assessment's required list** — added because the data
+called for it (see QA_PREP.md Q5).
+**Excludes nothing further:** `compute_outstanding` already floors at
+zero, so no negative/credit figure leaks into the overdue report; this
+rule surfaces *why* that floor applied.
+**Why not net against the customer's other invoices:** netting is a
+business decision the workbook doesn't define — surfaced, not assumed.
+
+## Notes on rule interactions
+
+- PAY-2025 fires both E002 and E003 (see E002/E003 above) — by design,
+  not a bug in either rule.
+- E006 and E008 are mutually exclusive per customer (E006 requires a
+  non-null GSTIN).
+- E007 and E010 both skip a payment whose `invoice_id` doesn't resolve
+  (that case is E003's alone) rather than raising or comparing against
+  nothing.
+- E014 only evaluates invoices with `invoice_amount > 0`, to avoid a
+  spurious fire against an already-E004-flagged negative-amount invoice
+  with zero payments against it.
