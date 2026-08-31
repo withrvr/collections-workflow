@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-31
+
+### Added
+
+- `backend/app/collections/fixtures/dataset_a_original.xlsx`: the given
+  assessment workbook, committed as a reproducible fixture.
+- `openpyxl` runtime dependency for reading xlsx workbooks with typed cells.
+- `contracts.py`: Decimal/date-typed canonical dataclasses (`CanonicalCustomer`,
+  `CanonicalInvoice`, `CanonicalPayment`, `RegionMap`, `CanonicalDataset`).
+- `ingest/resolver.py`: tier-1 exact-match column resolution.
+- `ingest/loader.py`: workbook -> `CanonicalDataset` via openpyxl, no pandas.
+- `calculate/outstanding.py`, `calculate/overdue.py`, `calculate/regions.py`,
+  `calculate/ageing.py`: pure calculation functions for outstanding,
+  overdue, region breakdown, and ageing buckets.
+- `scripts/reference_summary.py`: prints the reference numbers (15 overdue
+  invoices, ₹12,02,000 total outstanding, West heaviest) against dataset A.
+- Test suite under `backend/app/collections/tests/` (42 tests): loader,
+  resolver, calculator boundary tests, and a reference-number regression
+  test.
+
 ## [0.1.0] - 2026-08-31
 
 ### Added

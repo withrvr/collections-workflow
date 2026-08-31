@@ -15,8 +15,11 @@ changes that flow yet.
 
 ## Commands
 
-_Filled in as they exist (fixture generation, rule coverage tests,
-reconciliation tests)._
+```
+cd backend
+uv run pytest app/collections/tests -v                       # Phase 1 test suite
+uv run python -m app.collections.scripts.reference_summary   # reference numbers against dataset A
+```
 
 ## Git workflow
 
@@ -25,9 +28,12 @@ the repo root for the full standing instructions this build follows.
 
 ## Testing
 
-_Filled in Phase 1-2 onward — see MASTER_PLAN.md section 10 for the test
-layer breakdown (rule unit tests, coverage, boundary, reconciliation,
-gate, guard, failure, independent recompute)._
+Phase 1 covers boundary tests (due date exactly on the report date; a
+payment landing exactly on the report date) and a reference-number
+regression test against `fixtures/dataset_a_original.xlsx`
+(`tests/test_reference_numbers.py`). Rule-unit/coverage/gate/guard/
+failure/reconcile layers are added from Phase 2 on — see MASTER_PLAN.md
+section 10 for the full test layer breakdown.
 
 ## Release process
 

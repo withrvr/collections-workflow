@@ -5,31 +5,63 @@ service built on `fastapi/full-stack-fastapi-template`. This file is the
 single source of truth for what the service does and how to run it; see
 `docs/` for internals (owned per file, see below).
 
-Status: **Phase 0 (Foundation)**. This README will be filled in as each
+Status: **Phase 1 (Domain core)**. This README will be filled in as each
 phase lands; see `../../../docs/CHANGELOG.md` for what has shipped so far.
 
 ## What this does
 
-_Filled in starting Phase 1-2 (MASTER_PLAN.md): business rules, the
-exception catalogue summary, assumptions made where the brief was
-ambiguous._
+Computes an overdue collections position — invoice-level and by
+region/customer — from an ERP export (Customers, Invoices, Payments,
+Region_Mapping sheets), as of a fixed report date. Phase 1 covers the pure
+calculation core: loading the workbook into typed records and computing
+outstanding/overdue/ageing/region figures. No API, database, or exception
+reporting yet — see `docs/CHANGELOG.md` for what each phase adds.
 
 ## How to run
 
-_Filled in starting Phase 0 verification: `docker compose up`, health
-check, first API call._
+```
+cd backend
+uv run python -m app.collections.scripts.reference_summary
+uv run pytest app/collections/tests -v
+```
+The script loads `fixtures/dataset_a_original.xlsx` and prints the overdue
+count, total outstanding, and region breakdown.
 
 ## Business rules
 
-_Filled in Phase 1-2: report date, outstanding/overdue definitions,
-approved-only filter, tax exclusion — see `docs/RULES.md` for the full
-exception catalogue._
+- Report date: `2026-07-31` (`app/collections/config.py`, never `datetime.now()`).
+- Only `Approved` invoices are included in the overdue report; `Cancelled`
+  and `Credit Note` are excluded (shown in the exception report from Phase 2 on).
+- Outstanding = Invoice Amount − valid payments received on or before the
+  report date. Tax is never added.
+- A payment is valid only if its amount is positive, it is dated on or
+  before the report date, and its customer matches the invoice's own
+  customer.
+- Overdue = Due Date strictly before the report date AND Outstanding > 0.
+- If Customer Region is blank, Region is derived from `Region_Mapping` via
+  State.
+
+See `docs/RULES.md` for the full exception catalogue (Phase 2).
 
 ## Assumptions
 
-_Filled in as judgement calls are made (e.g. no netting of credit notes,
-exception-rate denominator choice) — see `QA_PREP.md` for the reasoning
-behind each._
+- **A payment dated before its own invoice's invoice date still counts in
+  full toward outstanding.** The workbook lists "payment before invoice"
+  only as an exception-report item, not as a reason to exclude the
+  payment from the calculation. Verified against the given dataset: the
+  reference figures (15 overdue invoices, ₹12,02,000 total, West
+  heaviest) only reconcile under this reading — excluding that payment
+  instead would land the total at ₹12,12,000. Example: PAY-2027 (dated
+  2026-06-05) still reduces INV-1004's outstanding, even though
+  INV-1004's own invoice date is 2026-06-10.
+- **Ageing bucket boundaries (0-30 / 31-60 / 61-90 / 90+ days) are a
+  standard-practice default**, not specified anywhere in the workbook.
+  Revisit if the client expects different cutoffs.
+- An invoice with an unknown customer reference, a missing due date, or a
+  non-positive amount is excluded from the overdue report (it cannot be
+  soundly attributed to a Region/Customer or compared against a due
+  date) — shown in the exception report from Phase 2 on, not silently
+  dropped.
 
 ## AI tooling used
 
