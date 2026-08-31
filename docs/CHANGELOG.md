@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-31
+
+**Submission scope (MASTER_PLAN.md Phases 0-8) complete.**
+
+### Added
+
+- `frontend/src/routes/collections/`: five routes -- `upload`, `runs`,
+  `run-detail`, `exceptions`, `summary`. No auth, matching the API.
+  Template's own shadcn/ui components throughout, no new UI library.
+- `frontend/src/components/Collections/`: `CollectionsNav` (shared
+  header, not a router-level layout), `StatusBadge`
+  (PASSED/BLOCKED/FAILED/RUNNING/PENDING color coding).
+- `run-detail` groups `run_events` by stage into a colored timeline
+  (green/amber/red by worst level in the group -- MASTER_PLAN.md
+  section 7's exact design), expandable per stage to the raw events.
+- `exceptions` joins each row's Phase 7 explanation inline
+  (cause/impact/suggested-fix/owner), filterable by severity.
+- `summary` renders the full "blocked payload" (`SummaryOut`) plus a
+  badge naming which of the three LLM rungs produced the narrative.
+- Frontend client regenerated (`scripts/generate-client.sh`) to include
+  `CollectionsService` against the current OpenAPI schema.
+- Verified end to end in a real, unmocked headless Chromium against the
+  actual Docker-served app (not just a `tsc`/`vite build` pass) --
+  upload, run-detail, exceptions, and summary all render correctly with
+  zero console errors, for both a `BLOCKED` (dataset A) and a `PASSED`
+  (dataset B) run. No automated Playwright suite committed yet.
+
 ## [0.8.0] - 2026-08-31
 
 ### Added
