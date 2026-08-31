@@ -30,6 +30,7 @@ which describes pipeline-stage health, not business weight.
 | E005 | Non-positive payment amount | error | 2 |
 | E009 | Payment after report date | warning | 1 |
 | E002 | Unknown customer reference (invoice or payment) | error | 2 |
+| E003 | Unknown invoice reference | error | 1 |
 
 ## E001 — Missing due date
 
@@ -136,3 +137,14 @@ broken reference is visible regardless of whether the other were fixed.
 an unknown customer is also, incidentally, unresolvable (see E003).
 **Why:** cannot attribute a Region or a credit position to a customer
 that doesn't exist in the master data.
+
+## E003 — Unknown invoice reference
+
+**Condition:** `Payment.invoice_id` is not present in the Invoices sheet.
+**Fires on:** PAY-2025 (Invoice_ID INV-9999). PAY-2025 also fires E002
+independently (its Customer_ID is C999) — see E002 above.
+**Excludes:** the payment is never applied to anything —
+`calculate/outstanding.py` indexes payments by real invoice IDs, so there
+is nothing to index it under.
+**Why:** cash received against a reference that doesn't exist needs a
+human to say what it was actually for.

@@ -249,3 +249,24 @@ def check_e002_unknown_customer_reference(
                 invoice_id=payment.invoice_id,
                 customer_id=payment.customer_id,
             )
+
+
+def check_e003_unknown_invoice_reference(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    known_invoice_ids = {i.invoice_id for i in dataset.invoices}
+    for payment in dataset.payments:
+        if payment.invoice_id not in known_invoice_ids:
+            yield ExceptionRow(
+                rule_code="E003",
+                category="Unknown invoice reference",
+                message=(
+                    f"Payment {payment.payment_id} references Invoice_ID "
+                    f"'{payment.invoice_id}', which is not in the Invoices sheet. "
+                    "The payment cannot be applied to anything."
+                ),
+                severity="error",
+                payment_id=payment.payment_id,
+                invoice_id=payment.invoice_id,
+                customer_id=payment.customer_id,
+            )
