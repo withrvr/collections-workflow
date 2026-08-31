@@ -25,6 +25,8 @@ which describes pipeline-stage health, not business weight.
 | E011 | Cancelled invoice | warning | 1 |
 | E012 | Credit Note invoice | warning | 1 |
 | E013 | Duplicate source system reference | warning | 2 |
+| E006 | Invalid GSTIN format | warning | 1 |
+| E008 | Missing GSTIN | warning | 1 |
 
 ## E001 — Missing due date
 
@@ -72,3 +74,25 @@ independently.
 **Why:** a shared ERP reference across two different invoice records can
 mean a duplicate entry or a legitimately split sales order; either way it
 needs investigation, not an automatic guess.
+
+## E006 — Invalid GSTIN format
+
+**Condition:** GSTIN present but does not match
+`^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z0-9]$` (2-digit state code, 10-char PAN,
+entity code digit, literal Z, checksum char — 15 chars total).
+**Fires on:** C023 (`INVALIDGSTIN`).
+**Format-only — no checksum validation.** This is a deliberate, documented
+limitation, not an oversight (see README.md's weakest-part discussion).
+**Excludes:** nothing downstream — GSTIN doesn't feed outstanding/overdue
+math.
+**Why:** flags master-data quality for whoever owns Customer records;
+doesn't block collection reporting.
+
+## E008 — Missing GSTIN
+
+**Condition:** `Customer.gstin is None`.
+**Fires on:** C025.
+**Excludes:** nothing downstream.
+**Why:** same master-data-quality rationale as E006, distinguished
+because "missing" and "malformed" call for different remediation (get
+the value vs. fix the value).
