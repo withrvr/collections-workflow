@@ -4,10 +4,9 @@ Owns: every endpoint — method, path, params, response schema, status
 codes, error codes. Does not own: business rationale (see `README.md`),
 setup (see `DEVELOPMENT.md`).
 
-Status: **Phase 0 skeleton.** Router stubs exist under
-`backend/app/collections/api/` (`runs`, `overdue`, `exceptions`,
-`regions`, `summary`, `run-log`, `mappings`), all mounted under
-`/api/v1/collections`. None has real handlers yet — populated in Phase 4.
+Status: **Phase 4 complete.** All endpoints mounted under
+`/api/v1/collections`, no auth required. Response schemas:
+`app/collections/api/schemas.py`.
 
 ## Health check
 
@@ -15,8 +14,79 @@ Status: **Phase 0 skeleton.** Router stubs exist under
 
 ## Endpoints
 
-_Filled in Phase 4: one section per endpoint, with request/response
-schemas and error codes. The error contract itself (`PipelineError`,
-`error_code`/`error_message` on a `FAILED` run) is built and documented
-in `ARCHITECTURE.md`'s "The error contract" section as of Phase 3 —
-Phase 4 wires it to HTTP responses, not from scratch._
+### `POST /collections/runs/`
+
+Upload a workbook and run the pipeline against it synchronously.
+Multipart form field `file`. Always returns `200` with a `Run` — a bad
+input file produces a `FAILED` run in the response body, never a `500`
+(see `ARCHITECTURE.md`'s error contract). `error_code`/`error_message`
+are set only when `status == "FAILED"`.
+
+```json
+{
+  "id": "uuid", "status": "COMPLETED", "source_filename": "dataset_a.xlsx",
+  "report_date": "2026-07-31", "created_at": "...", "completed_at": "...",
+  "error_code": null, "error_message": null,
+  "customer_count": 25, "invoice_count": 36, "payment_count": 29,
+  "overdue_count": 15, "total_outstanding": "1202000.00", "exception_count": 17
+}
+```
+
+### `GET /collections/runs/`
+
+List runs, newest first. Query params: `skip` (default 0), `limit`
+(default 100). Returns `{"data": [Run, ...], "count": <total>}`.
+
+### `GET /collections/runs/{run_id}`
+
+One run. `404` if `run_id` doesn't exist.
+
+### `GET /collections/overdue/?run_id=`
+
+Every overdue `RunInvoicePosition` for that run. `404` if `run_id`
+doesn't exist; empty `data`/`count: 0` if the run failed before
+`calculate` or genuinely has no overdue invoices.
+
+```json
+{"run_id": "uuid", "count": 15, "total_outstanding": "1202000.00", "data": [...]}
+```
+
+### `GET /collections/exceptions/?run_id=&rule_code=&severity=`
+
+Every `RunException` for that run. `rule_code` (e.g. `E001`) and
+`severity` (`error`/`warning`) are optional filters.
+
+### `GET /collections/regions/?run_id=`
+
+Overdue outstanding grouped by region, sorted heaviest first.
+
+```json
+{"run_id": "uuid", "heaviest_region": "West", "data": [{"region": "West", "outstanding": "472000.00", "overdue_count": 5}, ...]}
+```
+
+### `GET /collections/summary/?run_id=`
+
+The run's numeric summary plus the region breakdown. `exception_rate`
+is `exception_count / invoice_count`, or `null` if the run never
+reached `calculate`. Phase 5 adds the control-gate fields
+(`gate_status`, `blocked`) to this same response.
+
+### `GET /collections/run-log/{run_id}/events`
+
+The run's full event timeline, oldest first — `stage`, `level`, `code`,
+`message`, `detail`. This is what a `FAILED` run's readable error
+actually comes from; `data[-1]` on a failed run is always the `error`-level
+event that explains why.
+
+## Error codes
+
+Set on a `FAILED` `Run.error_code`, and on that run's final `run_events`
+row. See `ARCHITECTURE.md`'s error contract for the full mapping.
+
+| Code | Meaning |
+|---|---|
+| `SHEET_MISSING` | A required sheet (Customers/Invoices/Payments/Region_Mapping) is absent |
+| `SHEET_COLUMN_MISSING` | A present sheet is missing one or more required columns |
+| `FILE_CORRUPT` | The uploaded file isn't a valid Excel workbook |
+| `ROW_DATA_INVALID` | A cell couldn't be parsed (e.g. text in a money/date column) |
+| `UNEXPECTED_ERROR` | A genuine bug, not a bad input file — logged with a full traceback server-side, never shown to the user |

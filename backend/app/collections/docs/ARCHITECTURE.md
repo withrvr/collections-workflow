@@ -4,7 +4,7 @@ Owns: components, data flow, why each decision was made, trade-offs, what
 breaks at scale. Does not own: how to run anything (see `DEVELOPMENT.md`),
 endpoint payloads (see `API.md`).
 
-Status: **Phase 3 complete.** Populated phase by phase as components land.
+Status: **Phase 4 complete.** Populated phase by phase as components land.
 
 ## Components
 
@@ -22,7 +22,13 @@ Status: **Phase 3 complete.** Populated phase by phase as components land.
   channel (stdlib `logging` for now; Phase 12 upgrades it to structlog
   JSON once there's a real consumer for it).
 - `service.py` (Phase 3): `execute_run`, the orchestrator.
-- `control/`, `ai/`, `export/`, `api/` (Phase 4+): not yet populated.
+- `api/` (Phase 4): six routers (`runs`, `overdue`, `exceptions`,
+  `regions`, `summary`, `run-log`) mounted under `/collections`, plus
+  `schemas.py` (Pydantic response models, separate from `models.py`'s
+  SQLModel tables) and `deps.py` (`get_run_or_404`). No auth — this is
+  an internal ops tool, not a multi-tenant product, and MASTER_PLAN.md
+  never asks for one.
+- `control/`, `ai/`, `export/` (Phase 5+): not yet populated.
 
 ## Why `validate/schemas.py` is not Pandera
 
