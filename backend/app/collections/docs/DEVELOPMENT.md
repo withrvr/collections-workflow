@@ -3,7 +3,7 @@
 Owns: local setup, commands, git workflow, commit format, testing,
 release process. Does not own: business logic (see `README.md`).
 
-Status: **Phase 0 skeleton.**
+Status: **Phase 2 complete.**
 
 ## Local setup
 
@@ -17,7 +17,8 @@ changes that flow yet.
 
 ```
 cd backend
-uv run pytest app/collections/tests -v                       # Phase 1 test suite
+uv run pytest app/collections/tests -v                       # full test suite (107 tests)
+uv run pytest app/collections/tests/validate -v               # exception rule tests only
 uv run python -m app.collections.scripts.reference_summary   # reference numbers against dataset A
 ```
 
@@ -31,9 +32,14 @@ the repo root for the full standing instructions this build follows.
 Phase 1 covers boundary tests (due date exactly on the report date; a
 payment landing exactly on the report date) and a reference-number
 regression test against `fixtures/dataset_a_original.xlsx`
-(`tests/test_reference_numbers.py`). Rule-unit/coverage/gate/guard/
-failure/reconcile layers are added from Phase 2 on — see MASTER_PLAN.md
-section 10 for the full test layer breakdown.
+(`tests/test_reference_numbers.py`). Phase 2 added one test file per
+exception rule under `tests/validate/` (positive case against dataset A
+plus hand-built negative/boundary cases), a rule-coverage test
+(`tests/validate/test_coverage.py`), and two reconciliation identities
+(`tests/test_reconcile.py`). Gate/guard/failure layers are added from
+Phase 3 on; the independently-derived SQL crosscheck needs persistence
+and is deferred there too — see MASTER_PLAN.md section 10 for the full
+test layer breakdown.
 
 ## Release process
 

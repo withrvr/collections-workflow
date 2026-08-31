@@ -5,17 +5,22 @@ service built on `fastapi/full-stack-fastapi-template`. This file is the
 single source of truth for what the service does and how to run it; see
 `docs/` for internals (owned per file, see below).
 
-Status: **Phase 1 (Domain core)**. This README will be filled in as each
-phase lands; see `../../../docs/CHANGELOG.md` for what has shipped so far.
+Status: **Phase 2 (Validation and exceptions) complete**. This README
+will be filled in as each phase lands; see `../../../docs/CHANGELOG.md`
+for what has shipped so far.
 
 ## What this does
 
 Computes an overdue collections position — invoice-level and by
 region/customer — from an ERP export (Customers, Invoices, Payments,
-Region_Mapping sheets), as of a fixed report date. Phase 1 covers the pure
-calculation core: loading the workbook into typed records and computing
-outstanding/overdue/ageing/region figures. No API, database, or exception
-reporting yet — see `docs/CHANGELOG.md` for what each phase adds.
+Region_Mapping sheets), as of a fixed report date, and flags every data
+quality or business-rule issue it finds along the way rather than
+silently dropping the affected row. Phase 1 built the pure calculation
+core (loading the workbook into typed records, computing
+outstanding/overdue/ageing/region figures); Phase 2 added the 14-rule
+exception catalogue (`docs/RULES.md`) that explains every exclusion. No
+API or database persistence yet — see `docs/CHANGELOG.md` for what each
+phase adds.
 
 ## How to run
 
@@ -70,9 +75,30 @@ guard, and the agent-side build tooling (ponytail, caveman, anydoc)._
 
 ## Validation performed
 
-_Filled in Phase 2 and 10: rule coverage test, reconciliation test,
-independent SQL recompute — see `docs/DEVELOPMENT.md` for how to run the
-test suite._
+- **107 tests** (`uv run pytest app/collections/tests -v`): loader/resolver
+  tests, boundary tests on the calculators, a positive and a negative case
+  per exception rule against hand-built records, and the tests below.
+- **Rule coverage test** (`tests/validate/test_coverage.py`): asserts every
+  one of the 14 rules fires at least once against `dataset_a_original.xlsx`,
+  and that the registry covers exactly E001-E014 — a rule that never
+  triggers is treated as a bug, not good news.
+- **Reconciliation tests** (`tests/test_reconcile.py`): two identities
+  proving nothing silently vanishes. Every invoice's
+  `outstanding + valid_paid == invoice_amount + overpaid`, summed across
+  the full 36-invoice portfolio; and every payment rupee is either applied
+  to reduce some invoice's outstanding or explicitly unapplied, with every
+  unapplied payment traceable to an exception row. These are
+  internal-consistency checks — verifying the calculator's own arithmetic
+  never creates or destroys a rupee — not an independently-derived second
+  method; that's the SQL crosscheck deferred to Phase 3+, once persistence
+  exists to recompute from. Verifying the pandas-free result with a second
+  method there will be the most convincing possible answer to "what
+  validation did you perform."
+- **Exact-ID assertions throughout**, not just "fires at least once":
+  every rule test and the reference-number regression test assert the
+  precise set of invoice/payment/customer IDs a rule or calculation
+  should produce, so a rule silently over- or under-firing is caught, not
+  just a rule going fully silent.
 
 ## Owning-doc map
 
