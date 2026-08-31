@@ -77,18 +77,26 @@ API — this is an internal ops tool, not a multi-tenant product):
 |---|---|
 | `/collections/upload` | Drop a workbook, run it, land on its detail page |
 | `/collections/runs` | Every run so far, status/overdue/outstanding/exception counts |
-| `/collections/run-detail?runId=` | The colored stage timeline (green/amber/red, matching MASTER_PLAN.md section 7's design exactly), expandable per stage to the underlying `run_events`, and the run's `FAILED` error banner if it has one |
-| `/collections/exceptions?runId=` | Every exception, filterable by severity, expandable per row to its cause/impact/suggested-fix/owner (Phase 7) |
-| `/collections/summary?runId=` | The block/pass banner, the narrative with its `summary_source` badge, the numeric summary, the region breakdown |
+| `/collections/run-detail?runId=` | **The one-screen automated view.** The colored stage timeline (green/amber/red, matching MASTER_PLAN.md section 7's design exactly, expandable per stage to the underlying `run_events`), the run's `FAILED` error banner if it has one, then — inline, no click required — the full summary (block/pass banner, AI narrative, region breakdown) and the first 10 exceptions with cause/impact/fix/owner expandable per row |
+| `/collections/exceptions?runId=` | The same exceptions table, unpaginated, filterable by severity — for deep-diving past the run-detail preview |
+| `/collections/summary?runId=` | The same summary content, standalone — for sharing a direct link to just the numbers |
+
+`run-detail` is deliberately the destination `upload` redirects to and
+the one page a reviewer needs: nothing is asked of them beyond
+selecting a file. Both `exceptions` and `summary` render off shared
+components (`components/Collections/ExceptionsPanel.tsx`,
+`SummaryPanel.tsx`) also embedded directly in `run-detail` — one
+implementation, never two copies to keep in sync.
 
 Built entirely on the template's own shadcn/ui components
 (`frontend/src/components/ui/`) — no new UI library. Verified end to
 end in a real (not headless-only-in-theory) browser: upload
-`dataset_a_original.xlsx`, land on a `BLOCKED` run detail page, expand
-the timeline, click through to exceptions (cause/impact/fix/owner
-render per row) and summary (block banner + narrative + region table
-render), zero console errors — see `docs/DEVELOPMENT.md` for how to
-reproduce that check.
+`dataset_a_original.xlsx`, land on a `BLOCKED` run-detail page showing
+the timeline, block banner, narrative, region breakdown, and exceptions
+table all on one screen with no further clicks, expand a row inline to
+see its fix, confirm the "open full page" links still deep-link
+correctly — zero console errors throughout. See `docs/DEVELOPMENT.md`
+for how to reproduce that check.
 
 ## Business rules
 

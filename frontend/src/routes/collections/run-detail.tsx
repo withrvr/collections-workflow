@@ -10,8 +10,10 @@ import { Suspense, useState } from "react"
 import { z } from "zod"
 
 import { CollectionsService, type RunEventOut } from "@/client"
+import { ExceptionsPanel } from "@/components/Collections/ExceptionsPanel"
 import { CollectionsNav } from "@/components/Collections/Nav"
 import { StatusBadge } from "@/components/Collections/StatusBadge"
+import { SummaryPanel } from "@/components/Collections/SummaryPanel"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -118,23 +120,43 @@ function StageStep({
   )
 }
 
+function Timeline({ runId }: { runId: string }) {
+  const { data: eventsResponse } = useSuspenseQuery({
+    queryFn: async () =>
+      (await CollectionsService.getRunEvents({ path: { run_id: runId } })).data,
+    queryKey: ["collections", "run", runId, "events"],
+  })
+  const stages = groupByStage(eventsResponse?.data ?? [])
+
+  if (stages.length === 0) {
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <CircleDashed className="size-4" /> No events yet.
+      </p>
+    )
+  }
+
+  return (
+    <ol className="space-y-4">
+      {stages.map((group, i) => (
+        <StageStep key={`${group.stage}-${i}`} {...group} />
+      ))}
+    </ol>
+  )
+}
+
 function RunDetailContent({ runId }: { runId: string }) {
   const { data: run } = useSuspenseQuery({
     queryFn: async () =>
       (await CollectionsService.getRun({ path: { run_id: runId } })).data,
     queryKey: ["collections", "run", runId],
   })
-  const { data: eventsResponse } = useSuspenseQuery({
-    queryFn: async () =>
-      (await CollectionsService.getRunEvents({ path: { run_id: runId } })).data,
-    queryKey: ["collections", "run", runId, "events"],
-  })
 
   if (!run) return null
-  const stages = groupByStage(eventsResponse?.data ?? [])
+  const finished = run.status === "PASSED" || run.status === "BLOCKED"
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
@@ -156,39 +178,50 @@ function RunDetailContent({ runId }: { runId: string }) {
         </Alert>
       )}
 
-      {(run.status === "PASSED" || run.status === "BLOCKED") && (
-        <div className="flex gap-3">
-          <Link
-            to="/collections/summary"
-            search={{ runId: run.id }}
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
-            View summary
-          </Link>
-          <Link
-            to="/collections/exceptions"
-            search={{ runId: run.id }}
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
-            View exceptions ({run.exception_count ?? 0})
-          </Link>
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Timeline</h2>
+        <Suspense fallback={<Skeleton className="h-40 w-full rounded-lg" />}>
+          <Timeline runId={runId} />
+        </Suspense>
+      </div>
+
+      {finished && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Summary</h2>
+            <Link
+              to="/collections/summary"
+              search={{ runId: run.id }}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Open full page
+            </Link>
+          </div>
+          <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
+            <SummaryPanel runId={runId} />
+          </Suspense>
         </div>
       )}
 
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Timeline</h2>
-        {stages.length === 0 ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CircleDashed className="size-4" /> No events yet.
-          </p>
-        ) : (
-          <ol className="space-y-4">
-            {stages.map((group, i) => (
-              <StageStep key={`${group.stage}-${i}`} {...group} />
-            ))}
-          </ol>
-        )}
-      </div>
+      {finished && (run.exception_count ?? 0) > 0 && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">
+              Exceptions ({run.exception_count})
+            </h2>
+            <Link
+              to="/collections/exceptions"
+              search={{ runId: run.id }}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Open full page with filters
+            </Link>
+          </div>
+          <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
+            <ExceptionsPanel runId={runId} limit={10} />
+          </Suspense>
+        </div>
+      )}
     </div>
   )
 }
@@ -196,7 +229,7 @@ function RunDetailContent({ runId }: { runId: string }) {
 function RouteComponent() {
   const { runId } = Route.useSearch()
   return (
-    <div className="mx-auto max-w-3xl p-6 md:p-8">
+    <div className="mx-auto max-w-4xl p-6 md:p-8">
       <CollectionsNav />
       <Suspense fallback={<Skeleton className="h-96 w-full rounded-lg" />}>
         <RunDetailContent runId={runId} />

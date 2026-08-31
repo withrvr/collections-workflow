@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `postman/`: a full Postman collection (13 requests) plus two
+  environments (local Docker, public ngrok tunnel) -- verified against
+  the live backend via Newman, 25 assertions, 0 failures. Covers the
+  whole flow (upload -> timeline -> overdue/exceptions/regions/summary)
+  plus the error contract (a real garbage-file fixture proving
+  `FAILED`-never-`500`, an unknown-id 404). Test scripts chain
+  `run_id` automatically between requests.
+- `frontend`: `run-detail` is now the one-screen automated view --
+  timeline, summary (block/pass banner, AI narrative, region
+  breakdown), and the first 10 exceptions (cause/impact/fix/owner,
+  expandable inline) all render on the same page a successful upload
+  lands on, no further clicks required. `exceptions.tsx`/`summary.tsx`
+  now render off shared `ExceptionsPanel`/`SummaryPanel` components
+  also embedded in `run-detail` -- one implementation, not two copies.
+
 ## [0.9.0] - 2026-08-31
 
 **Submission scope (MASTER_PLAN.md Phases 0-8) complete.**

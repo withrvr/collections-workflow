@@ -29,6 +29,7 @@ own status line).
 | Read the exception rule catalogue (E001-E014) | [`backend/app/collections/docs/RULES.md`](backend/app/collections/docs/RULES.md) |
 | Read the architecture and design decisions | [`backend/app/collections/docs/ARCHITECTURE.md`](backend/app/collections/docs/ARCHITECTURE.md) |
 | Read the API reference | [`backend/app/collections/docs/API.md`](backend/app/collections/docs/API.md) |
+| Test every endpoint without writing code | [`postman/`](postman/) — import collection + environment, run |
 | Set up local development, run tests, understand the git workflow | [`backend/app/collections/docs/DEVELOPMENT.md`](backend/app/collections/docs/DEVELOPMENT.md), [`development.md`](development.md) |
 | Deploy the stack | [`deployment.md`](deployment.md), [`deployment-docker-compose.md`](deployment-docker-compose.md) |
 | Follow the standing build instructions this project's development follows | [`AGENTS.md`](AGENTS.md) |
