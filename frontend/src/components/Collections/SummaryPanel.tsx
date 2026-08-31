@@ -24,9 +24,17 @@ function formatRate(value: string | null) {
   return `${(Number(value) * 100).toFixed(1)}%`
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({
+  label,
+  value,
+  title,
+}: {
+  label: string
+  value: string | number
+  title?: string
+}) {
   return (
-    <div>
+    <div title={title ?? String(value)}>
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className="text-xl font-semibold">{value}</p>
     </div>
@@ -34,7 +42,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
-  ollama: "Local LLM (Ollama)",
+  ollama: "Local LLM (Ollama, phi4-mini)",
   cloud: "Cloud LLM",
   fallback: "Deterministic template",
 }
@@ -73,20 +81,24 @@ export function SummaryPanel({ runId }: { runId: string }) {
         </Alert>
       ) : null}
 
-      <Card>
+      <Card className="border-primary/20 bg-gradient-to-br from-card to-primary/[0.03]">
         <CardHeader className="flex-row items-center gap-2">
-          <Sparkles className="size-4 text-muted-foreground" />
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Narrative
-          </CardTitle>
+          <Sparkles className="size-5 text-primary" />
+          <CardTitle className="text-base font-semibold">AI Analysis</CardTitle>
           {summary.summary_source && (
-            <Badge variant="secondary" className="ml-auto">
+            <Badge
+              variant="secondary"
+              className="ml-auto"
+              title="Which rung of the three-rung fallback chain wrote this: local Ollama, an optional cloud model, or the deterministic Jinja template if neither was reachable"
+            >
               {SOURCE_LABEL[summary.summary_source] ?? summary.summary_source}
             </Badge>
           )}
         </CardHeader>
         <CardContent>
-          <p className="leading-relaxed">{summary.narrative}</p>
+          <p className="whitespace-pre-line text-base leading-relaxed text-foreground/90">
+            {summary.narrative}
+          </p>
         </CardContent>
       </Card>
 
@@ -97,12 +109,13 @@ export function SummaryPanel({ runId }: { runId: string }) {
         <Stat
           label="Outstanding"
           value={formatMoney(summary.total_outstanding)}
+          title={summary.total_outstanding ?? undefined}
         />
       </div>
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">By region</h2>
-        <div className="rounded-lg border">
+        <div className="overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -118,7 +131,7 @@ export function SummaryPanel({ runId }: { runId: string }) {
                   <TableCell className="text-right">
                     {region.overdue_count}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" title={region.outstanding}>
                     {formatMoney(region.outstanding)}
                   </TableCell>
                 </TableRow>

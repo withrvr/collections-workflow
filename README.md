@@ -1,16 +1,12 @@
-# ERP Collection Reporting Workflow
+# Collections Workflow
 
 An ERP collection reporting service: upload a workbook (Customers,
 Invoices, Payments, Region_Mapping), get back an overdue collections
 position — invoice-level and by region/customer — plus a full data
 quality/exception report, with nothing silently dropped along the way.
 
-Built for an assessment for Elevent Group, on top of
-[`fastapi/full-stack-fastapi-template`](https://github.com/fastapi/full-stack-fastapi-template)
-(FastAPI + SQLModel + Postgres backend, React + TanStack Router
-frontend, Docker Compose). See [`FASTAPI.md`](FASTAPI.md) for the base
-template's own documentation and technology-stack details, kept as
-reference material rather than folded into this file.
+Backend: FastAPI + SQLModel + Postgres. Frontend: React + TanStack
+Router. Docker Compose for local dev.
 
 **This file is deliberately short and stable.** It exists to orient
 anyone landing on the repo and point them to the real documentation —
@@ -58,7 +54,7 @@ for the full command reference.
 backend/app/collections/     the entire assessment service — one folder,
                               one concern, see MASTER_PLAN.md section 4
 frontend/src/routes/collections/   the assessment UI
-docs/CHANGELOG.md            this project's own history (not FASTAPI-release-notes.md)
+docs/CHANGELOG.md            this project's own history
 MASTER_PLAN.md               design and phase-by-phase build plan
 QA_PREP.md                   companion doc: the questions MASTER_PLAN.md answers
 ```

@@ -12,6 +12,12 @@ export type Body_collections_create_run = {
      * File
      */
     file: Blob | File;
+    /**
+     * Report Date
+     *
+     * ISO date (YYYY-MM-DD) to anchor overdue/ageing calculations to. Defaults to the workbook's own configured report date (settings.REPORT_DATE) if omitted.
+     */
+    report_date?: string | null;
 };
 
 /**
@@ -469,6 +475,10 @@ export type RunOut = {
      * Exception Count
      */
     exception_count: number | null;
+    /**
+     * Has Download
+     */
+    readonly has_download: boolean;
 };
 
 /**
@@ -483,6 +493,30 @@ export type RunsOut = {
      * Count
      */
     count: number;
+};
+
+/**
+ * SendEmailRequest
+ */
+export type SendEmailRequest = {
+    /**
+     * To
+     */
+    to: string;
+};
+
+/**
+ * SendEmailResponse
+ */
+export type SendEmailResponse = {
+    /**
+     * Sent
+     */
+    sent: boolean;
+    /**
+     * Message
+     */
+    message: string;
 };
 
 /**
@@ -742,6 +776,82 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * RunOut
+ */
+export type RunOutWritable = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Source Filename
+     */
+    source_filename: string;
+    /**
+     * Report Date
+     */
+    report_date: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Completed At
+     */
+    completed_at: string | null;
+    /**
+     * Error Code
+     */
+    error_code: string | null;
+    /**
+     * Error Message
+     */
+    error_message: string | null;
+    /**
+     * Customer Count
+     */
+    customer_count: number | null;
+    /**
+     * Invoice Count
+     */
+    invoice_count: number | null;
+    /**
+     * Payment Count
+     */
+    payment_count: number | null;
+    /**
+     * Overdue Count
+     */
+    overdue_count: number | null;
+    /**
+     * Total Outstanding
+     */
+    total_outstanding: string | null;
+    /**
+     * Exception Count
+     */
+    exception_count: number | null;
+};
+
+/**
+ * RunsOut
+ */
+export type RunsOutWritable = {
+    /**
+     * Data
+     */
+    data: Array<RunOutWritable>;
+    /**
+     * Count
+     */
+    count: number;
 };
 
 export type loginLoginAccessTokenData = {
@@ -1411,6 +1521,64 @@ export type collectionsGetRunResponses = {
 };
 
 export type collectionsGetRunResponse = collectionsGetRunResponses[keyof collectionsGetRunResponses];
+
+export type collectionsDownloadRunFileData = {
+    body?: never;
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/v1/collections/runs/{run_id}/download';
+};
+
+export type collectionsDownloadRunFileErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsDownloadRunFileError = collectionsDownloadRunFileErrors[keyof collectionsDownloadRunFileErrors];
+
+export type collectionsDownloadRunFileResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type collectionsSendRunEmailData = {
+    body: SendEmailRequest;
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/v1/collections/runs/{run_id}/send-email';
+};
+
+export type collectionsSendRunEmailErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsSendRunEmailError = collectionsSendRunEmailErrors[keyof collectionsSendRunEmailErrors];
+
+export type collectionsSendRunEmailResponses = {
+    /**
+     * Successful Response
+     */
+    200: SendEmailResponse;
+};
+
+export type collectionsSendRunEmailResponse = collectionsSendRunEmailResponses[keyof collectionsSendRunEmailResponses];
 
 export type collectionsGetOverdueData = {
     body?: never;

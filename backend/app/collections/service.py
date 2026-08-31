@@ -19,6 +19,8 @@ section 7's error contract).
 from __future__ import annotations
 
 import uuid
+from collections import Counter
+from datetime import date as date_type
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -29,7 +31,7 @@ from sqlmodel import Session
 
 from app.collections.ai.roles import exception_explainer, summary_narrator
 from app.collections.ai.roles.exception_explainer import RuleExplanation
-from app.collections.calculate.ageing import ageing_bucket
+from app.collections.calculate.ageing import ageing_bucket, summarize_ageing
 from app.collections.calculate.overdue import compute_positions, overdue_only
 from app.collections.calculate.regions import (
     build_customer_region_map,
@@ -126,15 +128,31 @@ def _persist_explanations(
         )
 
 
-def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
+def execute_run(
+    session: Session,
+    file_path: Path,
+    source_filename: str,
+    report_date: date_type | None = None,
+    stored_file_path: str | None = None,
+) -> Run:
     """Run the full pipeline against one uploaded workbook and persist the
     result. Always returns a `Run` -- a bad input file produces a `FAILED`
     run with readable events, never a raised exception out of this
     function (that distinction is the whole point of the error contract:
-    a 500 means *this code* broke, not the user's file)."""
-    report_date = settings.REPORT_DATE
+    a 500 means *this code* broke, not the user's file).
+
+    `report_date` overrides `settings.REPORT_DATE` -- the workbook's own
+    stated report date is the correct default (AGENTS.md: never
+    `datetime.now()`), but a reviewer testing a different scenario can
+    supply their own via the API/UI rather than editing config and
+    restarting. `stored_file_path` records where the original upload is
+    kept on disk, if the caller persisted one, for later download."""
+    report_date = report_date or settings.REPORT_DATE
     run = Run(
-        status="RUNNING", source_filename=source_filename, report_date=report_date
+        status="RUNNING",
+        source_filename=source_filename,
+        report_date=report_date,
+        stored_file_path=stored_file_path,
     )
     session.add(run)
     session.commit()
@@ -241,13 +259,19 @@ def execute_run(session: Session, file_path: Path, source_filename: str) -> Run:
         heaviest_region = (
             max(by_region, key=lambda r: by_region[r]) if by_region else None
         )
+        ageing = summarize_ageing(overdue)
+        rule_counts = Counter(row.rule_code for row in exception_rows)
         result = summary_narrator.narrate(
             source_filename=source_filename,
             report_date=str(report_date),
+            customer_count=len(dataset.customers),
             invoice_count=len(dataset.invoices),
             overdue_count=len(overdue),
             total_outstanding=total_outstanding,
             heaviest_region=heaviest_region,
+            by_region=by_region,
+            ageing=ageing,
+            rule_counts=rule_counts,
             gate=gate,
         )
         emit(

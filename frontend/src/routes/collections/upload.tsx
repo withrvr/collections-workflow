@@ -13,7 +13,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { LoadingButton } from "@/components/ui/loading-button"
+import { cn } from "@/lib/utils"
+
+const DEFAULT_REPORT_DATE = "2026-07-31"
 
 export const Route = createFileRoute("/collections/upload")({
   component: RouteComponent,
@@ -26,10 +31,19 @@ function RouteComponent() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [reportDate, setReportDate] = useState(DEFAULT_REPORT_DATE)
+  const [dragOver, setDragOver] = useState(false)
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) =>
-      (await CollectionsService.createRun({ body: { file } })).data,
+    mutationFn: async ({
+      file,
+      report_date,
+    }: {
+      file: File
+      report_date: string
+    }) =>
+      (await CollectionsService.createRun({ body: { file, report_date } }))
+        .data,
     onSuccess: (run) => {
       if (!run) return
       navigate({
@@ -47,7 +61,10 @@ function RouteComponent() {
         <p className="text-muted-foreground">
           Upload an ERP export (Customers, Invoices, Payments, Region_Mapping
           sheets) to compute the overdue collections position and see every
-          data-quality issue found along the way.
+          data-quality issue found along the way. File-level problems (a missing
+          sheet, a corrupt file, an unreadable cell) are caught the same way
+          row-level ones are — you'll see exactly what happened, never a raw
+          error.
         </p>
       </div>
 
@@ -67,10 +84,25 @@ function RouteComponent() {
             className="hidden"
             onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
           />
+          {/* Native HTML5 drag-and-drop -- no library needed. */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center gap-2 rounded-lg border-2 border-dashed p-10 text-center text-muted-foreground hover:border-primary hover:text-foreground"
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragOver(false)
+              const dropped = e.dataTransfer.files?.[0]
+              if (dropped) setSelectedFile(dropped)
+            }}
+            className={cn(
+              "flex flex-col items-center gap-2 rounded-lg border-2 border-dashed p-10 text-center text-muted-foreground transition-colors hover:border-primary hover:text-foreground",
+              dragOver && "border-primary bg-primary/5 text-foreground",
+            )}
           >
             <UploadCloud className="size-8" />
             {selectedFile ? (
@@ -78,9 +110,21 @@ function RouteComponent() {
                 {selectedFile.name}
               </span>
             ) : (
-              <span>Click to choose a file, or drop one here</span>
+              <span>Click to choose a file, or drag one in</span>
             )}
           </button>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-date">Report date</Label>
+            <Input
+              id="report-date"
+              type="date"
+              value={reportDate}
+              onChange={(e) => setReportDate(e.target.value)}
+              title="The date overdue/ageing math is anchored to. Defaults to the workbook's own stated report date -- change it to test a different scenario against the same file."
+              className="w-48"
+            />
+          </div>
 
           {uploadMutation.isError && (
             <Alert variant="destructive">
@@ -97,7 +141,13 @@ function RouteComponent() {
           <LoadingButton
             disabled={!selectedFile}
             loading={uploadMutation.isPending}
-            onClick={() => selectedFile && uploadMutation.mutate(selectedFile)}
+            onClick={() =>
+              selectedFile &&
+              uploadMutation.mutate({
+                file: selectedFile,
+                report_date: reportDate,
+              })
+            }
           >
             Run
           </LoadingButton>

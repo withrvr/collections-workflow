@@ -30,10 +30,14 @@ def _narrate(gate: GateResult) -> NarrativeResult:
     return summary_narrator.narrate(
         source_filename="dataset_a_original.xlsx",
         report_date="2026-07-31",
+        customer_count=25,
         invoice_count=36,
         overdue_count=15,
         total_outstanding=Decimal("1202000.00"),
         heaviest_region="West",
+        by_region={"West": Decimal("472000.00")},
+        ageing={"0-30": Decimal("100000.00")},
+        rule_counts={"E001": 17} if gate.exception_count else None,
         gate=gate,
     )
 

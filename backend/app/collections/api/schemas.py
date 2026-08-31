@@ -12,7 +12,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, computed_field
 
 
 class RunOut(BaseModel):
@@ -30,6 +30,15 @@ class RunOut(BaseModel):
     overdue_count: int | None
     total_outstanding: Decimal | None
     exception_count: int | None
+    # Populated from Run.stored_file_path for has_download below, never
+    # serialized itself -- the raw server filesystem path isn't the
+    # client's business, only whether a download exists.
+    stored_file_path: str | None = Field(default=None, exclude=True)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def has_download(self) -> bool:
+        return self.stored_file_path is not None
 
     model_config = {"from_attributes": True}
 

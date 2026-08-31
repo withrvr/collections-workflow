@@ -1,0 +1,7 @@
+<svg width="220" height="40" viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" y="4" rx="8" fill="#0d9488"/>
+  <path d="M10 24 L10 13 Q10 11 12 11 L18 11" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <rect x="14" y="16" width="11" height="11" rx="2.5" fill="white"/>
+  <path d="M16.5 21.5 L18.5 23.5 L23 18.5" stroke="#0d9488" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="42" y="26" font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="#0f172a">Collections Workflow</text>
+</svg>

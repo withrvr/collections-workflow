@@ -10,8 +10,10 @@ import { Suspense, useState } from "react"
 import { z } from "zod"
 
 import { CollectionsService, type RunEventOut } from "@/client"
+import { DownloadLink } from "@/components/Collections/DownloadLink"
 import { ExceptionsPanel } from "@/components/Collections/ExceptionsPanel"
 import { CollectionsNav } from "@/components/Collections/Nav"
+import { SendEmailButton } from "@/components/Collections/SendEmailButton"
 import { StatusBadge } from "@/components/Collections/StatusBadge"
 import { SummaryPanel } from "@/components/Collections/SummaryPanel"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -157,7 +159,7 @@ function RunDetailContent({ runId }: { runId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             {run.source_filename}
@@ -166,8 +168,14 @@ function RunDetailContent({ runId }: { runId: string }) {
             Report date {run.report_date} · created{" "}
             {new Date(run.created_at).toLocaleString()}
           </p>
+          <div className="mt-2">
+            <DownloadLink runId={run.id} hasDownload={run.has_download} />
+          </div>
         </div>
-        <StatusBadge status={run.status} />
+        <div className="flex items-center gap-3">
+          {finished && <SendEmailButton runId={run.id} />}
+          <StatusBadge status={run.status} />
+        </div>
       </div>
 
       {run.status === "FAILED" && (

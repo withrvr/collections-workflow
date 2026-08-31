@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Per-run file storage: every upload is kept on disk
+  (`/tmp/collections-uploads/`) and downloadable via
+  `GET /collections/runs/{id}/download`; `RunOut.has_download` and a
+  download link/icon expose it in the UI (runs list, run-detail).
+- `report_date` is now a user-overridable form field on
+  `POST /collections/runs` (default 2026-07-31, validated ISO date,
+  422 on malformed input) instead of a fixed setting -- both Postman
+  and the upload page (native `<input type="date">`) can drive it.
+- `POST /collections/runs/{id}/send-email`: emails a run's summary
+  (status, stats, narrative) via the existing SMTP/Mailpit setup;
+  503 if email isn't configured, 409 if the run hasn't finished.
+- Pagination on `/collections/runs` (`GET .../runs?skip=&limit=`,
+  frontend `?page=` search param, 20/page).
+- Public (no-auth) root dashboard at `/`: KPI cards, an outstanding-
+  by-run bar chart and a run-outcomes pie chart (Recharts), recent
+  runs list, nav into upload/runs.
+- `backend/app/collections/scripts/make_manual_test_files.py`: writes
+  6 `.xlsx` cases (clean pass, blocked, missing sheet, missing column,
+  corrupt, empty) to a local gitignored `test-files/` folder for
+  manual Postman/UI testing.
+
+### Changed
+
+- AI summary narrative (both the Ollama prompt and the deterministic
+  fallback) rewritten to be substantially longer and more analytical:
+  region breakdown, ageing-bucket breakdown, top exception rules by
+  count, not just a one-line total.
+- `ExceptionsPanel` rebuilt from a `<table>` to a card layout -- a
+  table forces every cell in a column to share one width, which is
+  what caused the reported overlapping/horizontal-scroll bug on the
+  exceptions page; cards let cause/impact/fix text wrap at full width
+  instead. Hover `title` tooltips added throughout (severity badges,
+  truncated filenames, monetary values, region cells).
+- Full rebrand off the FastAPI template identity: new SVG logo, page
+  title/favicon, footer, and route titles all say "Collections
+  Workflow"; `FASTAPI.md`/`FASTAPI-release-notes.md` removed.
+- Upload page: native HTML5 drag-and-drop added to the existing
+  dropzone.
+
 - `postman/`: a full Postman collection (13 requests) plus two
   environments (local Docker, public ngrok tunnel) -- verified against
   the live backend via Newman, 25 assertions, 0 failures. Covers the

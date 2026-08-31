@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { collectionsCreateRunData, collectionsCreateRunErrors, collectionsCreateRunResponses, collectionsGetExceptionsData, collectionsGetExceptionsErrors, collectionsGetExceptionsResponses, collectionsGetOverdueData, collectionsGetOverdueErrors, collectionsGetOverdueResponses, collectionsGetRegionsData, collectionsGetRegionsErrors, collectionsGetRegionsResponses, collectionsGetRunData, collectionsGetRunErrors, collectionsGetRunEventsData, collectionsGetRunEventsErrors, collectionsGetRunEventsResponses, collectionsGetRunResponses, collectionsGetSummaryData, collectionsGetSummaryErrors, collectionsGetSummaryResponses, collectionsListRunsData, collectionsListRunsErrors, collectionsListRunsResponses, itemsCreateItemData, itemsCreateItemErrors, itemsCreateItemResponses, itemsDeleteItemData, itemsDeleteItemErrors, itemsDeleteItemResponses, itemsReadItemData, itemsReadItemErrors, itemsReadItemResponses, itemsReadItemsData, itemsReadItemsErrors, itemsReadItemsResponses, itemsUpdateItemData, itemsUpdateItemErrors, itemsUpdateItemResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
+import type { collectionsCreateRunData, collectionsCreateRunErrors, collectionsCreateRunResponses, collectionsDownloadRunFileData, collectionsDownloadRunFileErrors, collectionsDownloadRunFileResponses, collectionsGetExceptionsData, collectionsGetExceptionsErrors, collectionsGetExceptionsResponses, collectionsGetOverdueData, collectionsGetOverdueErrors, collectionsGetOverdueResponses, collectionsGetRegionsData, collectionsGetRegionsErrors, collectionsGetRegionsResponses, collectionsGetRunData, collectionsGetRunErrors, collectionsGetRunEventsData, collectionsGetRunEventsErrors, collectionsGetRunEventsResponses, collectionsGetRunResponses, collectionsGetSummaryData, collectionsGetSummaryErrors, collectionsGetSummaryResponses, collectionsListRunsData, collectionsListRunsErrors, collectionsListRunsResponses, collectionsSendRunEmailData, collectionsSendRunEmailErrors, collectionsSendRunEmailResponses, itemsCreateItemData, itemsCreateItemErrors, itemsCreateItemResponses, itemsDeleteItemData, itemsDeleteItemErrors, itemsDeleteItemResponses, itemsReadItemData, itemsReadItemErrors, itemsReadItemResponses, itemsReadItemsData, itemsReadItemsErrors, itemsReadItemsResponses, itemsUpdateItemData, itemsUpdateItemErrors, itemsUpdateItemResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -405,6 +405,38 @@ export class CollectionsService {
             responseType: 'json',
             url: '/api/v1/collections/runs/{run_id}',
             ...options
+        });
+    }
+    
+    /**
+     * Download Run File
+     */
+    public static downloadRunFile<ThrowOnError extends boolean = true>(options: Options<collectionsDownloadRunFileData, ThrowOnError>) {
+        return (options.client ?? client).get<collectionsDownloadRunFileResponses, collectionsDownloadRunFileErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/collections/runs/{run_id}/download',
+            ...options
+        });
+    }
+    
+    /**
+     * Send Run Email
+     *
+     * Emails this run's summary -- status, key numbers, and the AI
+     * narrative -- to the given address via the same SMTP config the
+     * template already uses for password-reset emails (Mailpit in dev,
+     * http://localhost:8025). Not wired to any auto-send trigger: a human
+     * clicks "send" for a specific run, on purpose, every time.
+     */
+    public static sendRunEmail<ThrowOnError extends boolean = true>(options: Options<collectionsSendRunEmailData, ThrowOnError>) {
+        return (options.client ?? client).post<collectionsSendRunEmailResponses, collectionsSendRunEmailErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/collections/runs/{run_id}/send-email',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
         });
     }
     

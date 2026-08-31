@@ -50,6 +50,10 @@ class Run(SQLModel, table=True):
     status: str = Field(default="PENDING", index=True, max_length=16)
     source_filename: str = Field(max_length=255)
     report_date: date
+    # Where the original upload is kept on disk (api/uploads.py), for
+    # GET /collections/runs/{id}/download. None if it was never stored
+    # (e.g. a run created directly via service.execute_run in a test).
+    stored_file_path: str | None = Field(default=None, max_length=512)
     created_at: datetime = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
