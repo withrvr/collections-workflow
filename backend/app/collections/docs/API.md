@@ -4,7 +4,7 @@ Owns: every endpoint — method, path, params, response schema, status
 codes, error codes. Does not own: business rationale (see `README.md`),
 setup (see `DEVELOPMENT.md`).
 
-Status: **Phase 7 complete.** All endpoints mounted under
+Status: **Phase 8 complete.** All endpoints mounted under
 `/api/v1/collections`, no auth required. Response schemas:
 `app/collections/api/schemas.py`.
 

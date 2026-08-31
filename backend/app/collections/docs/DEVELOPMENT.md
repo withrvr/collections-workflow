@@ -3,7 +3,7 @@
 Owns: local setup, commands, git workflow, commit format, testing,
 release process. Does not own: business logic (see `README.md`).
 
-Status: **Phase 7 complete.**
+Status: **Phase 8 complete — submission scope (Phases 0-8) done.**
 
 ## Local setup
 
@@ -78,6 +78,25 @@ explanation, `auto_fixable` always `False`, the fallback rung reproduces
 ever names a record ID outside its own batch) and extended
 `test_guard.py` with `ids_are_contained` cases. See MASTER_PLAN.md
 section 10 for the full test layer breakdown.
+
+Phase 8's frontend has no automated test suite yet (no Playwright specs
+committed) -- it was verified manually, once, end to end in a real
+browser rather than left unverified. Reproduce it:
+
+```
+cd backend && docker compose up -d --build backend   # from repo root; bakes the frontend build in
+cd frontend
+bunx playwright install chromium   # one-time; no --with-deps (needs sudo, skip it)
+bun add -D playwright               # if not already a devDependency
+```
+Then drive it with Playwright's `chromium.launch({ args: ["--no-sandbox"] })`
+against `http://localhost:8000/collections/upload` -- `nav`, `setInputFiles`
+the fixture at `../backend/app/collections/fixtures/dataset_a_original.xlsx`,
+click `Run`, `waitForURL(/run-detail/)`, assert `BLOCKED` renders, click
+through to `/collections/exceptions` and `/collections/summary`,
+`page.on("pageerror", ...)` to catch anything that throws. A real
+frontend test suite (Playwright specs, not a one-off script) is a
+reasonable next addition, not built as of Phase 8.
 
 ## Release process
 

@@ -5,7 +5,7 @@ service built on `fastapi/full-stack-fastapi-template`. This file is the
 single source of truth for what the service does and how to run it; see
 `docs/` for internals (owned per file, see below).
 
-Status: **Phase 7 (Exception Explainer) complete**. This README
+Status: **Phase 8 (Frontend) complete — submission scope (Phases 0-8) done**. This README
 will be filled in as each phase lands; see `../../../docs/CHANGELOG.md`
 for what has shipped so far.
 
@@ -38,8 +38,15 @@ once per rule code, not per row, since "why did E001 fire" has one
 answer no matter how many invoices it hit — guarded the same way (an
 explanation can't name a record ID it was never shown), and
 `auto_fixable` is hardcoded `False` everywhere: the model explains, it
-never gets to decide something is safe to auto-correct. See
-`docs/CHANGELOG.md` for what each phase adds.
+never gets to decide something is safe to auto-correct. Phase 8 puts a
+real UI in front of all of it — five routes (upload, runs list, run
+detail with a colored stage timeline, exceptions table with filters,
+management summary with the block/pass banner) that a reviewer who has
+never seen a terminal can use to upload a file and read every output.
+This closes out the **submission scope** (MASTER_PLAN.md Phases 0-8);
+Phases 9-13 are presentation-scope extras for the later live demo, not
+required for submission. See `docs/CHANGELOG.md` for what each phase
+adds.
 
 ## How to run
 
@@ -58,6 +65,30 @@ runs `alembic upgrade head` automatically before starting) and open
 http://localhost:8000/docs. `POST /collections/runs/` with a workbook
 file, then drive `GET /collections/overdue`, `/exceptions`, `/regions`,
 `/summary`, `/run-log/{id}/events` from there — see `docs/API.md`.
+
+Or use the UI: http://localhost:8000/collections/upload.
+
+## Frontend (Phase 8)
+
+Five routes, `frontend/src/routes/collections/`, no auth (matches the
+API — this is an internal ops tool, not a multi-tenant product):
+
+| Route | Shows |
+|---|---|
+| `/collections/upload` | Drop a workbook, run it, land on its detail page |
+| `/collections/runs` | Every run so far, status/overdue/outstanding/exception counts |
+| `/collections/run-detail?runId=` | The colored stage timeline (green/amber/red, matching MASTER_PLAN.md section 7's design exactly), expandable per stage to the underlying `run_events`, and the run's `FAILED` error banner if it has one |
+| `/collections/exceptions?runId=` | Every exception, filterable by severity, expandable per row to its cause/impact/suggested-fix/owner (Phase 7) |
+| `/collections/summary?runId=` | The block/pass banner, the narrative with its `summary_source` badge, the numeric summary, the region breakdown |
+
+Built entirely on the template's own shadcn/ui components
+(`frontend/src/components/ui/`) — no new UI library. Verified end to
+end in a real (not headless-only-in-theory) browser: upload
+`dataset_a_original.xlsx`, land on a `BLOCKED` run detail page, expand
+the timeline, click through to exceptions (cause/impact/fix/owner
+render per row) and summary (block banner + narrative + region table
+render), zero console errors — see `docs/DEVELOPMENT.md` for how to
+reproduce that check.
 
 ## Business rules
 
@@ -226,6 +257,15 @@ onward, MASTER_PLAN.md section 6.
   batch. `test_guard.py` extends the same file with `ids_are_contained`
   cases (matching ID passes, an unlisted ID fails, case-insensitive
   matching, no-IDs-present trivially passes).
+- **Frontend** (Phase 8): verified manually, once, in a real headless
+  Chromium against the actual Docker-served app — not just a
+  `tsc`/`vite build` pass. Uploaded `dataset_a_original.xlsx`, landed on
+  its `BLOCKED` run-detail page, expanded a timeline stage, clicked
+  through to exceptions (cause/impact/fix/owner rendered per row) and
+  summary (block banner, narrative with its source badge, region
+  table) — zero browser console errors throughout. See
+  `docs/DEVELOPMENT.md` for the reproduction steps. No automated
+  Playwright suite committed yet.
 
 ## Owning-doc map
 
