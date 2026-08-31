@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-31
+
+### Added
+
+- `contracts.py`: `ExceptionRow` (rule code, category, plain-English
+  message, severity, natural keys, native-typed detail dict).
+- `validate/schemas.py`: declarative `SheetSchema` structural constants
+  and `sheet_row_counts()` — deliberately not Pandera; reasoning in
+  `docs/ARCHITECTURE.md`.
+- `validate/engine.py`: registry-driven rule runner (`RULE_REGISTRY`,
+  `run_all_rules`, `exceptions_by_rule`).
+- `validate/rules.py`: all 14 exception rules (E001-E014) — missing due
+  date, unknown customer/invoice references, non-positive invoice/payment
+  amounts, invalid/missing GSTIN, payment-to-invoice customer mismatch,
+  payment after report date, payment before invoice date, Cancelled/Credit
+  Note status, duplicate source system reference, and overpayment (E014,
+  added beyond the assessment's required list).
+- `docs/RULES.md`: complete 14-rule catalogue, one entry per code, with
+  condition, dataset A trigger, exclusion behavior, and rationale.
+- Test suite additions under `backend/app/collections/tests/` (65 new
+  tests, 107 total): one file per rule with a dataset-A positive case
+  plus hand-built negative/boundary cases; `tests/validate/factories.py`
+  shared record builders; `tests/validate/test_coverage.py` (every rule
+  fires on dataset A, registry covers exactly E001-E014); two
+  reconciliation identities in `tests/test_reconcile.py` proving no
+  invoice or payment rupee is lost.
+
+### Fixed
+
+- `QA_PREP.md` Q20's answer, which claimed Pandera was already in use for
+  structural checks — corrected to match the actual Phase 2 design
+  decision.
+
 ## [0.2.0] - 2026-08-31
 
 ### Added
