@@ -31,6 +31,7 @@ which describes pipeline-stage health, not business weight.
 | E009 | Payment after report date | warning | 1 |
 | E002 | Unknown customer reference (invoice or payment) | error | 2 |
 | E003 | Unknown invoice reference | error | 1 |
+| E007 | Payment-to-invoice customer mismatch | error | 1 |
 
 ## E001 — Missing due date
 
@@ -148,3 +149,17 @@ independently (its Customer_ID is C999) — see E002 above.
 is nothing to index it under.
 **Why:** cash received against a reference that doesn't exist needs a
 human to say what it was actually for.
+
+## E007 — Payment-to-invoice customer mismatch
+
+**Condition:** `Payment.customer_id != Invoice.customer_id` for the
+invoice the payment names (only evaluated when that invoice exists — see
+E003).
+**Fires on:** PAY-2026 — recorded against customer C003, but INV-1002
+belongs to C002.
+**Excludes:** the payment from C002's valid paid total, so C002 correctly
+still shows overdue rather than being credited with someone else's cash.
+**Why (worked example, matches MASTER_PLAN.md section 8 and QA_PREP.md
+Q11):** the payment is flagged rather than reassigned, since reassignment
+would be a silent data correction moving cash between ledgers on a guess.
+Owner: Accounts Receivable.

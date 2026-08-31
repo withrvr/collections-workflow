@@ -270,3 +270,33 @@ def check_e003_unknown_invoice_reference(
                 invoice_id=payment.invoice_id,
                 customer_id=payment.customer_id,
             )
+
+
+def check_e007_payment_invoice_customer_mismatch(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    invoices_by_id = {i.invoice_id: i for i in dataset.invoices}
+    for payment in dataset.payments:
+        invoice = invoices_by_id.get(payment.invoice_id)
+        if invoice is None:
+            continue  # unresolved reference is E003's concern, not this rule's
+        if payment.customer_id != invoice.customer_id:
+            yield ExceptionRow(
+                rule_code="E007",
+                category="Payment-to-invoice customer mismatch",
+                message=(
+                    f"Payment {payment.payment_id} is recorded against customer "
+                    f"{payment.customer_id}, but the invoice it pays "
+                    f"({invoice.invoice_id}) belongs to customer {invoice.customer_id}. "
+                    f"Excluded from {invoice.customer_id}'s paid total rather than "
+                    "reassigned, since reassignment would be a silent data correction."
+                ),
+                severity="error",
+                payment_id=payment.payment_id,
+                invoice_id=invoice.invoice_id,
+                customer_id=payment.customer_id,
+                detail={
+                    "payment_customer_id": payment.customer_id,
+                    "invoice_customer_id": invoice.customer_id,
+                },
+            )
