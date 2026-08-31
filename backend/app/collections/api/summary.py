@@ -38,5 +38,6 @@ def get_summary(session: SessionDep, run_id: uuid.UUID) -> SummaryOut:
         distinct_invoices_affected=run.distinct_invoices_affected,
         distinct_invoice_rate=run.distinct_invoice_rate,
         narrative=run.narrative,
+        summary_source=run.summary_source,
         by_region=region_breakdown(session, run_id),
     )

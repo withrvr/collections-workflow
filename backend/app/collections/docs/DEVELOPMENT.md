@@ -3,7 +3,7 @@
 Owns: local setup, commands, git workflow, commit format, testing,
 release process. Does not own: business logic (see `README.md`).
 
-Status: **Phase 5 complete.**
+Status: **Phase 6 complete.**
 
 ## Local setup
 
@@ -21,15 +21,26 @@ from Phase 3: `compose.override.yml`'s dev `backend` command now runs
 
 ```
 cd backend
-uv run pytest app/collections/tests -v                       # full test suite (142 tests)
+uv run pytest app/collections/tests -v                       # full test suite (154 tests, ~90s incl. real Ollama calls)
 uv run pytest app/collections/tests/validate -v               # exception rule tests only
 uv run pytest app/collections/tests/persistence -v             # run lifecycle / error contract
 uv run pytest app/collections/tests/api -v                     # API tests (TestClient, in-memory SQLite)
-uv run pytest app/collections/tests/control app/collections/tests/ai -v  # control gate / fallback narrative
+uv run pytest app/collections/tests/control app/collections/tests/ai -v  # control gate / LLM layer
 uv run python -m app.collections.scripts.reference_summary   # reference numbers against dataset A
 uv run python -m app.collections.scripts.make_fixtures        # (re)generate dataset_b_clean.xlsx
 uv run alembic upgrade head                                   # apply migrations (Postgres only)
 uv run alembic check                                          # confirm models.py matches migrations
+```
+
+`tests/ai/` calls a real local Ollama (`phi4-mini`) where reachable, and
+skips those specific tests gracefully otherwise (`pytest.mark.skipif`,
+`tests/ai/conftest.py`) -- the rest of the suite never depends on Ollama,
+since `summary_narrator.narrate()` always falls through to the
+deterministic template when it's unavailable. Set up Ollama:
+
+```
+# On Windows (or wherever Ollama runs): ollama pull phi4-mini
+export COLLECTIONS_OLLAMA_API_BASE=http://localhost:11434   # default; override if needed
 ```
 
 ## Git workflow
@@ -54,8 +65,14 @@ via `alembic upgrade head` and guarded against drift by `alembic check`):
 broken workbooks, each asserted to produce a specific `error_code` and a
 readable, traceback-free `error_message`) and `test_sql_crosscheck.py`,
 the independently-derived SQL recompute MASTER_PLAN.md section 10 asks
-for. Control gate/guard layers land from Phase 5 on — see MASTER_PLAN.md
-section 10 for the full test layer breakdown.
+for. Phase 5 added `tests/control/test_gate.py` (threshold boundary,
+zero-invoice edge case, row-rate/distinct-rate divergence) and
+`tests/ai/test_fallback.py`. Phase 6 added the rest of `tests/ai/`:
+`test_guard.py` (numeric containment, including the date-hyphen edge
+case), `test_provider.py` and `test_summary_narrator.py` (real,
+unmocked calls to local Ollama where reachable — see "Commands" above
+for the skip behavior when it isn't), and `test_context.py`. See
+MASTER_PLAN.md section 10 for the full test layer breakdown.
 
 ## Release process
 
