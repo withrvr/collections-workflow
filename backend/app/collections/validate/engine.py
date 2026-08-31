@@ -19,6 +19,7 @@ RuleFn = Callable[[CanonicalDataset, date], Iterator[ExceptionRow]]
 
 RULE_REGISTRY: dict[str, RuleFn] = {
     "E001": rules.check_e001_missing_due_date,
+    "E004": rules.check_e004_non_positive_invoice_amount,
 }
 
 

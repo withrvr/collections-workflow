@@ -21,6 +21,7 @@ which describes pipeline-stage health, not business weight.
 | Code | Category | Severity | Dataset A count |
 |---|---|---|---|
 | E001 | Missing due date | error | 1 |
+| E004 | Non-positive invoice amount | error | 1 |
 
 ## E001 — Missing due date
 
@@ -31,3 +32,12 @@ which describes pipeline-stage health, not business weight.
 date).
 **Why:** an invoice with no due date cannot be classified overdue or
 current; excluding it and flagging it beats guessing a date.
+
+## E004 — Non-positive invoice amount
+
+**Condition:** `Invoice.invoice_amount <= 0`.
+**Fires on:** INV-1028 (-45,000).
+**Excludes:** the invoice from the overdue report.
+**Why:** a negative or zero invoice amount is either a data-entry error
+or a credit that hasn't been reclassified as a Credit Note; either way
+it should not silently net into the overdue total.

@@ -35,3 +35,22 @@ def check_e001_missing_due_date(
                 invoice_id=invoice.invoice_id,
                 customer_id=invoice.customer_id,
             )
+
+
+def check_e004_non_positive_invoice_amount(
+    dataset: CanonicalDataset, report_date: date
+) -> Iterator[ExceptionRow]:  # noqa: ARG001
+    for invoice in dataset.invoices:
+        if invoice.invoice_amount <= Decimal("0"):
+            yield ExceptionRow(
+                rule_code="E004",
+                category="Non-positive invoice amount",
+                message=(
+                    f"Invoice {invoice.invoice_id} has a non-positive amount "
+                    f"({invoice.invoice_amount}). Excluded from the overdue report."
+                ),
+                severity="error",
+                invoice_id=invoice.invoice_id,
+                customer_id=invoice.customer_id,
+                detail={"invoice_amount": invoice.invoice_amount},
+            )
