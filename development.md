@@ -1,4 +1,9 @@
-# FastAPI Project - Development
+# ERP Collection Reporting Workflow - Development
+
+Base-stack (Docker Compose, FastAPI, Vite) instructions inherited from
+`fastapi/full-stack-fastapi-template`. For collections-specific commands
+and test layout, see
+[`backend/app/collections/docs/DEVELOPMENT.md`](backend/app/collections/docs/DEVELOPMENT.md).
 
 ## Local Development
 

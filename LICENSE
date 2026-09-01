@@ -1,6 +1,13 @@
 MIT License
 
+This project (ERP Collection Reporting Workflow) is built on top of
+`fastapi/full-stack-fastapi-template`, used under the original MIT
+license below. This project's own additions (everything under
+`backend/app/collections/`, `frontend/src/routes/collections/`, and the
+project-specific documentation) are likewise MIT-licensed.
+
 Copyright (c) 2019 Sebastián Ramírez
+Copyright (c) 2026 Raghav Rathi (ERP Collection Reporting Workflow additions)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

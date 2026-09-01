@@ -1,4 +1,4 @@
-# FastAPI Project - Deployment
+# ERP Collection Reporting Workflow - Deployment (FastAPI Cloud)
 
 Deploy the project to [FastAPI Cloud](https://fastapicloud.com) with the included GitHub Actions workflow.
 

@@ -1,0 +1,613 @@
+{
+  "info": {
+    "_postman_id": "b7e1a2c4-0000-4a2b-9c3d-collectionsworkflow",
+    "name": "ERP Collection Reporting Workflow",
+    "description": "Full API flow for the collections service: upload a workbook, watch the pipeline run (load -> validate -> explain -> calculate -> control gate -> summarise -> persist), then read every output.\n\n## How to use this\n\n1. Import both environment files too (`local.postman_environment.json` for the Docker-served app on this machine, `ngrok.postman_environment.json` for the public tunnel).\n2. Select the **Collections Workflow - Local** environment (top-right dropdown).\n3. Run **Runs > Create Run - Dataset A (Blocks)** first -- its test script saves the returned run's id into `{{blocked_run_id}}` and `{{run_id}}` automatically. Every other request in this collection reads `{{run_id}}`, so just re-run whichever \"Create Run\" request you want to inspect next and everything downstream follows it.\n4. Then work through **Reports** top to bottom against that run.\n5. Run **Create Run - Dataset B (Passes)** to see the other outcome (`{{passed_run_id}}` is saved separately so you can compare both without re-uploading).\n\n## The one manual step Postman won't let you script\n\nPostman (desktop, v10+) strips the `src` path out of file-type form-data fields on import, for security -- it will not silently read a local file path from a JSON someone sent you. Each \"Create Run\" request below already has the field ready named `file`; you only need to click into the Body tab and select the file once per request:\n\n- Dataset A (blocks): `{{dataset_a_path}}`\n- Dataset B (passes): `{{dataset_b_path}}`\n- Or your own file: any `.xlsx` with the same four sheets (Customers, Invoices, Payments, Region_Mapping)\n\nAfter you select it once, Postman remembers it for that request going forward.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "run_id", "value": "" },
+    { "key": "blocked_run_id", "value": "" },
+    { "key": "passed_run_id", "value": "" },
+    { "key": "dataset_a_path", "value": "" },
+    { "key": "dataset_b_path", "value": "" },
+    { "key": "corrupt_path", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Body is literally true', function () {",
+                  "    pm.expect(pm.response.json()).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/utils/health-check/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "utils", "health-check", ""]
+            },
+            "description": "From the base fastapi/full-stack-fastapi-template. Returns `true` when the backend is up and can reach the database. Run this first -- if this fails, nothing below will work."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Runs",
+      "item": [
+        {
+          "name": "Create Run - Dataset A (Blocks)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Postman strips local file paths from imported collections for security.",
+                  "// Click the Body tab, click 'Select File' next to the `file` key, and pick:",
+                  "//   {{dataset_a_path}}",
+                  "// (shown for reference in the Console below).",
+                  "console.log('Attach file for this request:', pm.variables.get('dataset_a_path'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 (never 500, even for a run that fails)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const run = pm.response.json();",
+                  "",
+                  "pm.test('Run has an id and a status', function () {",
+                  "    pm.expect(run.id).to.be.a('string');",
+                  "    pm.expect(run.status).to.be.oneOf(['PASSED', 'BLOCKED', 'FAILED']);",
+                  "});",
+                  "",
+                  "pm.test('Dataset A blocks the control gate', function () {",
+                  "    pm.expect(run.status).to.eql('BLOCKED');",
+                  "    pm.expect(run.exception_count).to.eql(17);",
+                  "    pm.expect(run.overdue_count).to.eql(15);",
+                  "    pm.expect(run.total_outstanding).to.eql('1202000.00');",
+                  "});",
+                  "",
+                  "// Downstream requests in this collection read {{run_id}} --",
+                  "// pointing it at this run means 'Reports' folder inspects dataset A by default.",
+                  "pm.collectionVariables.set('run_id', run.id);",
+                  "pm.collectionVariables.set('blocked_run_id', run.id);",
+                  "console.log('run_id set to', run.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select {{dataset_a_path}} -- the assessment's own workbook. ~45% exception rate, blocks the 5% control gate by design."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/runs/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "runs", ""]
+            },
+            "description": "Upload a workbook and run the full pipeline synchronously: load -> validate -> explain -> calculate -> control gate -> summarise -> persist. Always returns 200 with a Run, whatever happens -- a bad file produces a `FAILED` run in the body, never a 500.\n\nAttach **{{dataset_a_path}}** in the Body tab. This is the assessment's given workbook -- it has real data-quality issues by design (that's the point) and will come back `BLOCKED`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Run - Dataset B (Passes)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('Attach file for this request:', pm.variables.get('dataset_b_path'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const run = pm.response.json();",
+                  "",
+                  "pm.test('Dataset B passes the control gate', function () {",
+                  "    pm.expect(run.status).to.eql('PASSED');",
+                  "    pm.expect(run.exception_count).to.eql(0);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('run_id', run.id);",
+                  "pm.collectionVariables.set('passed_run_id', run.id);",
+                  "console.log('run_id set to', run.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select {{dataset_b_path}} -- a hand-derived clean subset of dataset A (every row any rule flagged, removed). Demonstrates the gate passing."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/runs/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "runs", ""]
+            },
+            "description": "Same endpoint, the clean fixture. Attach **{{dataset_b_path}}** in the Body tab. Sets `{{run_id}}` and `{{passed_run_id}}` to this run so you can compare a PASSED run's Reports against a BLOCKED one."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Run - Your Own File",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 (200 even on a bad file -- check the body for FAILED)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const run = pm.response.json();",
+                  "console.log('status:', run.status);",
+                  "if (run.status === 'FAILED') {",
+                  "    console.log('error_code:', run.error_code);",
+                  "    console.log('error_message:', run.error_message);",
+                  "    console.log('-> check Reports > Get Run Events (Timeline) for exactly where it stopped.');",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('run_id', run.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Attach any .xlsx with Customers/Invoices/Payments/Region_Mapping sheets -- your own export, a modified copy of dataset A, whatever you want to test."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/runs/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "runs", ""]
+            },
+            "description": "Use this one for your own workbook. Nothing about it is different from the two above -- same endpoint, same synchronous pipeline. Sets `{{run_id}}` to whatever comes back so Reports below inspects it next."
+          },
+          "response": []
+        },
+        {
+          "name": "List Runs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Has data array and count', function () {",
+                  "    pm.expect(body.data).to.be.an('array');",
+                  "    pm.expect(body.count).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/runs/?skip=0&limit=100",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "runs", ""],
+              "query": [
+                { "key": "skip", "value": "0" },
+                { "key": "limit", "value": "100" }
+              ]
+            },
+            "description": "Every run so far, newest first."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Run by ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('run_id')) {",
+                  "    console.warn('run_id is empty -- run a \"Create Run\" request first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Run id matches what we asked for', function () {",
+                  "    pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('run_id'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/runs/{{run_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "runs", "{{run_id}}"]
+            },
+            "description": "404 if `{{run_id}}` doesn't exist -- try this against a made-up UUID to see the error shape."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reports (for {{run_id}})",
+      "item": [
+        {
+          "name": "Get Run Events (Timeline)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Has ordered events', function () {",
+                  "    pm.expect(body.data).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "console.log('stages:', body.data.map(e => e.stage + '/' + e.code).join(' -> '));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/run-log/{{run_id}}/events",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "run-log", "{{run_id}}", "events"]
+            },
+            "description": "The full stage-by-stage timeline -- this is where a FAILED run's readable reason actually lives (the last event, level=error). This is the API-level equivalent of the frontend's run-detail timeline."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Overdue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Every row is genuinely overdue', function () {",
+                  "    body.data.forEach(row => pm.expect(row.is_overdue).to.be.true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/overdue/?run_id={{run_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "overdue", ""],
+              "query": [{ "key": "run_id", "value": "{{run_id}}" }]
+            },
+            "description": "Every overdue invoice position for this run, plus the total outstanding."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Exceptions (All)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.count > 0) {",
+                  "    pm.test('Every row carries an explanation', function () {",
+                  "        body.data.forEach(row => {",
+                  "            pm.expect(row.cause, row.rule_code + ' cause').to.be.a('string').that.is.not.empty;",
+                  "            pm.expect(row.suggested_fix, row.rule_code + ' suggested_fix').to.be.a('string').that.is.not.empty;",
+                  "            pm.expect(row.auto_fixable, row.rule_code + ' auto_fixable').to.eql(false);",
+                  "        });",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/exceptions/?run_id={{run_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "exceptions", ""],
+              "query": [{ "key": "run_id", "value": "{{run_id}}" }]
+            },
+            "description": "Every data-quality/business-rule issue this run found. Each row already carries cause/impact/suggested_fix/owner/explanation_source (Phase 7) -- this IS the 'what's wrong and how do I fix it' guide. `auto_fixable` is always `false`: the model explains, a human fixes."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Exceptions (Filtered: rule_code + severity)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Every row matches the requested rule_code', function () {",
+                  "    body.data.forEach(row => pm.expect(row.rule_code).to.eql('E001'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/exceptions/?run_id={{run_id}}&rule_code=E001&severity=error",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "exceptions", ""],
+              "query": [
+                { "key": "run_id", "value": "{{run_id}}" },
+                { "key": "rule_code", "value": "E001", "description": "Any of E001-E014. Change this to browse a specific rule." },
+                { "key": "severity", "value": "error", "description": "'error' or 'warning'." }
+              ]
+            },
+            "description": "Same endpoint, both optional filters shown. Change `rule_code` in the query params to browse E001 through E014, or drop it to see all rules of a given severity."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Regions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/regions/?run_id={{run_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "regions", ""],
+              "query": [{ "key": "run_id", "value": "{{run_id}}" }]
+            },
+            "description": "Overdue outstanding grouped by region, heaviest first."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Summary (the blocked payload + AI narrative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Carries the full control-gate payload', function () {",
+                  "    pm.expect(body.gate_threshold).to.eql('0.0500');",
+                  "    pm.expect(body.exception_row_rate).to.be.a('string');",
+                  "    pm.expect(body.distinct_invoice_rate).to.be.a('string');",
+                  "});",
+                  "pm.test('Narrative and its source are present', function () {",
+                  "    pm.expect(body.narrative).to.be.a('string').that.is.not.empty;",
+                  "    pm.expect(body.summary_source).to.be.oneOf(['ollama', 'cloud', 'fallback']);",
+                  "});",
+                  "console.log('narrative source:', body.summary_source);",
+                  "console.log('narrative:', body.narrative);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/summary/?run_id={{run_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "summary", ""],
+              "query": [{ "key": "run_id", "value": "{{run_id}}" }]
+            },
+            "description": "The numeric summary, region breakdown, the control gate's full payload (rate, both denominators, threshold), and the narrative -- `summary_source` tells you whether phi4-mini (\"ollama\"), a cloud model, or the deterministic Jinja fallback actually wrote it."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Handling (demo the contract)",
+      "item": [
+        {
+          "name": "Create Run - Corrupt File (expect FAILED, not 500)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A real file is required -- FastAPI 422s a text-typed form field",
+                  "// before our code ever sees it, which would test Postman's validation,",
+                  "// not ours. Attach the actual garbage file this repo ships for this test:",
+                  "console.log('Attach file for this request:', pm.variables.get('corrupt_path'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Still 200, never 500', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const run = pm.response.json();",
+                  "pm.test('Run is FAILED with a readable, traceback-free reason', function () {",
+                  "    pm.expect(run.status).to.eql('FAILED');",
+                  "    pm.expect(run.error_code).to.eql('FILE_CORRUPT');",
+                  "    pm.expect(run.error_message).to.not.include('Traceback');",
+                  "});",
+                  "pm.collectionVariables.set('run_id', run.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select {{corrupt_path}} -- postman/fixtures/corrupt.xlsx, a real file that is deliberately not a valid xlsx. Proves the error contract: FAILED with a readable reason, never a 500."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/runs/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "runs", ""]
+            },
+            "description": "MASTER_PLAN.md section 7's error contract, proven live: a bad file never 500s. Attach **{{corrupt_path}}** in the Body tab. Sets `{{run_id}}` to this FAILED run -- run 'Get Run Events (Timeline)' next to see exactly where it stopped and why."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Run - Unknown ID (expect 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collections/runs/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collections", "runs", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "A well-formed but nonexistent run id. Confirms 404 handling on every run-scoped endpoint."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

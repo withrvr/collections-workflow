@@ -20,7 +20,8 @@ fileConfig(config.config_file_name)
 # target_metadata = None
 
 from app.models import SQLModel  # noqa
-from app.core.config import settings # noqa
+import app.collections.models  # noqa: E402,F401 -- registers collections_* tables on SQLModel.metadata
+from app.core.config import settings  # noqa
 
 target_metadata = SQLModel.metadata
 

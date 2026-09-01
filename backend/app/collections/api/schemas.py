@@ -1,0 +1,153 @@
+"""Pydantic response models shared across the collections API routers.
+
+Read-only API schemas, separate from `models.py`'s SQLModel tables --
+these shape what a client sees, not what Postgres stores (e.g. `detail`
+here is the already-JSON-safe dict `models.py` persists, not re-derived).
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Any
+
+from pydantic import BaseModel, Field, computed_field
+
+
+class RunOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    source_filename: str
+    report_date: date
+    created_at: datetime
+    completed_at: datetime | None
+    error_code: str | None
+    error_message: str | None
+    customer_count: int | None
+    invoice_count: int | None
+    payment_count: int | None
+    overdue_count: int | None
+    total_outstanding: Decimal | None
+    exception_count: int | None
+    # Populated from Run.stored_file_path for has_download below, never
+    # serialized itself -- the raw server filesystem path isn't the
+    # client's business, only whether a download exists.
+    stored_file_path: str | None = Field(default=None, exclude=True)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def has_download(self) -> bool:
+        return self.stored_file_path is not None
+
+    model_config = {"from_attributes": True}
+
+
+class RunsOut(BaseModel):
+    data: list[RunOut]
+    count: int
+
+
+class RunEventOut(BaseModel):
+    id: uuid.UUID
+    ts: datetime
+    stage: str
+    level: str
+    code: str
+    message: str
+    detail_json: dict[str, Any] | None
+
+    model_config = {"from_attributes": True}
+
+
+class RunEventsOut(BaseModel):
+    run_id: uuid.UUID
+    status: str
+    data: list[RunEventOut]
+
+
+class InvoicePositionOut(BaseModel):
+    invoice_id: str
+    customer_id: str
+    region: str | None
+    due_date: date | None
+    outstanding: Decimal
+    is_overdue: bool
+    days_overdue: int
+    ageing_bucket: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class OverdueOut(BaseModel):
+    run_id: uuid.UUID
+    data: list[InvoicePositionOut]
+    count: int
+    total_outstanding: Decimal
+
+
+class ExceptionOut(BaseModel):
+    """`cause`/`impact`/`suggested_fix`/`owner`/`auto_fixable` come from
+    the rule's shared `RunRuleExplanation` (Phase 7), joined by
+    `rule_code` -- not stored per exception row. `auto_fixable` is
+    always `False` -- see `ai/roles/exception_explainer.py`."""
+
+    id: uuid.UUID
+    rule_code: str
+    category: str
+    message: str
+    severity: str
+    invoice_id: str | None
+    payment_id: str | None
+    customer_id: str | None
+    detail_json: dict[str, Any] | None
+    cause: str | None
+    impact: str | None
+    suggested_fix: str | None
+    owner: str | None
+    auto_fixable: bool
+    explanation_source: str | None  # "ollama" | "cloud" | "fallback"
+
+    model_config = {"from_attributes": True}
+
+
+class ExceptionsOut(BaseModel):
+    run_id: uuid.UUID
+    data: list[ExceptionOut]
+    count: int
+
+
+class RegionBreakdownOut(BaseModel):
+    region: str
+    outstanding: Decimal
+    overdue_count: int
+
+
+class RegionsOut(BaseModel):
+    run_id: uuid.UUID
+    data: list[RegionBreakdownOut]
+    heaviest_region: str | None
+
+
+class SummaryOut(BaseModel):
+    """The "blocked payload" QA_PREP.md Q7 describes: the rate, both
+    denominators, the threshold, and the count -- whichever way the gate
+    went. `status` is "PASSED"/"BLOCKED" (or "FAILED" if the run never
+    reached the gate)."""
+
+    run_id: uuid.UUID
+    status: str
+    report_date: date
+    customer_count: int | None
+    invoice_count: int | None
+    payment_count: int | None
+    overdue_count: int | None
+    total_outstanding: Decimal | None
+    exception_count: int | None
+    gate_threshold: Decimal | None
+    exception_row_rate: Decimal | None
+    distinct_invoices_affected: int | None
+    distinct_invoice_rate: Decimal | None
+    narrative: str | None
+    summary_source: str | None  # "ollama" | "cloud" | "fallback"
+    by_region: list[RegionBreakdownOut]

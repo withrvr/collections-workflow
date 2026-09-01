@@ -5,6 +5,22 @@ export type ClientOptions = {
 };
 
 /**
+ * Body_collections-create_run
+ */
+export type Body_collections_create_run = {
+    /**
+     * File
+     */
+    file: Blob | File;
+    /**
+     * Report Date
+     *
+     * ISO date (YYYY-MM-DD) to anchor overdue/ageing calculations to. Defaults to the workbook's own configured report date (settings.REPORT_DATE) if omitted.
+     */
+    report_date?: string | null;
+};
+
+/**
  * Body_login-login_access_token
  */
 export type Body_login_login_access_token = {
@@ -35,6 +51,97 @@ export type Body_login_login_access_token = {
 };
 
 /**
+ * ExceptionOut
+ *
+ * `cause`/`impact`/`suggested_fix`/`owner`/`auto_fixable` come from
+ * the rule's shared `RunRuleExplanation` (Phase 7), joined by
+ * `rule_code` -- not stored per exception row. `auto_fixable` is
+ * always `False` -- see `ai/roles/exception_explainer.py`.
+ */
+export type ExceptionOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Rule Code
+     */
+    rule_code: string;
+    /**
+     * Category
+     */
+    category: string;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Severity
+     */
+    severity: string;
+    /**
+     * Invoice Id
+     */
+    invoice_id: string | null;
+    /**
+     * Payment Id
+     */
+    payment_id: string | null;
+    /**
+     * Customer Id
+     */
+    customer_id: string | null;
+    /**
+     * Detail Json
+     */
+    detail_json: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Cause
+     */
+    cause: string | null;
+    /**
+     * Impact
+     */
+    impact: string | null;
+    /**
+     * Suggested Fix
+     */
+    suggested_fix: string | null;
+    /**
+     * Owner
+     */
+    owner: string | null;
+    /**
+     * Auto Fixable
+     */
+    auto_fixable: boolean;
+    /**
+     * Explanation Source
+     */
+    explanation_source: string | null;
+};
+
+/**
+ * ExceptionsOut
+ */
+export type ExceptionsOut = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+    /**
+     * Data
+     */
+    data: Array<ExceptionOut>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * HTTPValidationError
  */
 export type HTTPValidationError = {
@@ -42,6 +149,44 @@ export type HTTPValidationError = {
      * Detail
      */
     detail?: Array<ValidationError>;
+};
+
+/**
+ * InvoicePositionOut
+ */
+export type InvoicePositionOut = {
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Customer Id
+     */
+    customer_id: string;
+    /**
+     * Region
+     */
+    region: string | null;
+    /**
+     * Due Date
+     */
+    due_date: string | null;
+    /**
+     * Outstanding
+     */
+    outstanding: string;
+    /**
+     * Is Overdue
+     */
+    is_overdue: boolean;
+    /**
+     * Days Overdue
+     */
+    days_overdue: number;
+    /**
+     * Ageing Bucket
+     */
+    ageing_bucket: string | null;
 };
 
 /**
@@ -137,6 +282,28 @@ export type NewPassword = {
 };
 
 /**
+ * OverdueOut
+ */
+export type OverdueOut = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+    /**
+     * Data
+     */
+    data: Array<InvoicePositionOut>;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Total Outstanding
+     */
+    total_outstanding: string;
+};
+
+/**
  * PrivateUserCreate
  */
 export type PrivateUserCreate = {
@@ -156,6 +323,275 @@ export type PrivateUserCreate = {
      * Is Verified
      */
     is_verified?: boolean;
+};
+
+/**
+ * RegionBreakdownOut
+ */
+export type RegionBreakdownOut = {
+    /**
+     * Region
+     */
+    region: string;
+    /**
+     * Outstanding
+     */
+    outstanding: string;
+    /**
+     * Overdue Count
+     */
+    overdue_count: number;
+};
+
+/**
+ * RegionsOut
+ */
+export type RegionsOut = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+    /**
+     * Data
+     */
+    data: Array<RegionBreakdownOut>;
+    /**
+     * Heaviest Region
+     */
+    heaviest_region: string | null;
+};
+
+/**
+ * RunEventOut
+ */
+export type RunEventOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Ts
+     */
+    ts: string;
+    /**
+     * Stage
+     */
+    stage: string;
+    /**
+     * Level
+     */
+    level: string;
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Detail Json
+     */
+    detail_json: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * RunEventsOut
+ */
+export type RunEventsOut = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Data
+     */
+    data: Array<RunEventOut>;
+};
+
+/**
+ * RunOut
+ */
+export type RunOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Source Filename
+     */
+    source_filename: string;
+    /**
+     * Report Date
+     */
+    report_date: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Completed At
+     */
+    completed_at: string | null;
+    /**
+     * Error Code
+     */
+    error_code: string | null;
+    /**
+     * Error Message
+     */
+    error_message: string | null;
+    /**
+     * Customer Count
+     */
+    customer_count: number | null;
+    /**
+     * Invoice Count
+     */
+    invoice_count: number | null;
+    /**
+     * Payment Count
+     */
+    payment_count: number | null;
+    /**
+     * Overdue Count
+     */
+    overdue_count: number | null;
+    /**
+     * Total Outstanding
+     */
+    total_outstanding: string | null;
+    /**
+     * Exception Count
+     */
+    exception_count: number | null;
+    /**
+     * Has Download
+     */
+    readonly has_download: boolean;
+};
+
+/**
+ * RunsOut
+ */
+export type RunsOut = {
+    /**
+     * Data
+     */
+    data: Array<RunOut>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * SendEmailRequest
+ */
+export type SendEmailRequest = {
+    /**
+     * To
+     */
+    to: string;
+};
+
+/**
+ * SendEmailResponse
+ */
+export type SendEmailResponse = {
+    /**
+     * Sent
+     */
+    sent: boolean;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
+ * SummaryOut
+ *
+ * The "blocked payload" QA_PREP.md Q7 describes: the rate, both
+ * denominators, the threshold, and the count -- whichever way the gate
+ * went. `status` is "PASSED"/"BLOCKED" (or "FAILED" if the run never
+ * reached the gate).
+ */
+export type SummaryOut = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Report Date
+     */
+    report_date: string;
+    /**
+     * Customer Count
+     */
+    customer_count: number | null;
+    /**
+     * Invoice Count
+     */
+    invoice_count: number | null;
+    /**
+     * Payment Count
+     */
+    payment_count: number | null;
+    /**
+     * Overdue Count
+     */
+    overdue_count: number | null;
+    /**
+     * Total Outstanding
+     */
+    total_outstanding: string | null;
+    /**
+     * Exception Count
+     */
+    exception_count: number | null;
+    /**
+     * Gate Threshold
+     */
+    gate_threshold: string | null;
+    /**
+     * Exception Row Rate
+     */
+    exception_row_rate: string | null;
+    /**
+     * Distinct Invoices Affected
+     */
+    distinct_invoices_affected: number | null;
+    /**
+     * Distinct Invoice Rate
+     */
+    distinct_invoice_rate: string | null;
+    /**
+     * Narrative
+     */
+    narrative: string | null;
+    /**
+     * Summary Source
+     */
+    summary_source: string | null;
+    /**
+     * By Region
+     */
+    by_region: Array<RegionBreakdownOut>;
 };
 
 /**
@@ -340,6 +776,82 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * RunOut
+ */
+export type RunOutWritable = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Source Filename
+     */
+    source_filename: string;
+    /**
+     * Report Date
+     */
+    report_date: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Completed At
+     */
+    completed_at: string | null;
+    /**
+     * Error Code
+     */
+    error_code: string | null;
+    /**
+     * Error Message
+     */
+    error_message: string | null;
+    /**
+     * Customer Count
+     */
+    customer_count: number | null;
+    /**
+     * Invoice Count
+     */
+    invoice_count: number | null;
+    /**
+     * Payment Count
+     */
+    payment_count: number | null;
+    /**
+     * Overdue Count
+     */
+    overdue_count: number | null;
+    /**
+     * Total Outstanding
+     */
+    total_outstanding: string | null;
+    /**
+     * Exception Count
+     */
+    exception_count: number | null;
+};
+
+/**
+ * RunsOut
+ */
+export type RunsOutWritable = {
+    /**
+     * Data
+     */
+    data: Array<RunOutWritable>;
+    /**
+     * Count
+     */
+    count: number;
 };
 
 export type loginLoginAccessTokenData = {
@@ -920,6 +1432,311 @@ export type itemsUpdateItemResponses = {
 };
 
 export type itemsUpdateItemResponse = itemsUpdateItemResponses[keyof itemsUpdateItemResponses];
+
+export type collectionsListRunsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/collections/runs/';
+};
+
+export type collectionsListRunsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsListRunsError = collectionsListRunsErrors[keyof collectionsListRunsErrors];
+
+export type collectionsListRunsResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunsOut;
+};
+
+export type collectionsListRunsResponse = collectionsListRunsResponses[keyof collectionsListRunsResponses];
+
+export type collectionsCreateRunData = {
+    body: Body_collections_create_run;
+    path?: never;
+    query?: never;
+    url: '/api/v1/collections/runs/';
+};
+
+export type collectionsCreateRunErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsCreateRunError = collectionsCreateRunErrors[keyof collectionsCreateRunErrors];
+
+export type collectionsCreateRunResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunOut;
+};
+
+export type collectionsCreateRunResponse = collectionsCreateRunResponses[keyof collectionsCreateRunResponses];
+
+export type collectionsGetRunData = {
+    body?: never;
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/v1/collections/runs/{run_id}';
+};
+
+export type collectionsGetRunErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsGetRunError = collectionsGetRunErrors[keyof collectionsGetRunErrors];
+
+export type collectionsGetRunResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunOut;
+};
+
+export type collectionsGetRunResponse = collectionsGetRunResponses[keyof collectionsGetRunResponses];
+
+export type collectionsDownloadRunFileData = {
+    body?: never;
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/v1/collections/runs/{run_id}/download';
+};
+
+export type collectionsDownloadRunFileErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsDownloadRunFileError = collectionsDownloadRunFileErrors[keyof collectionsDownloadRunFileErrors];
+
+export type collectionsDownloadRunFileResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type collectionsSendRunEmailData = {
+    body: SendEmailRequest;
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/v1/collections/runs/{run_id}/send-email';
+};
+
+export type collectionsSendRunEmailErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsSendRunEmailError = collectionsSendRunEmailErrors[keyof collectionsSendRunEmailErrors];
+
+export type collectionsSendRunEmailResponses = {
+    /**
+     * Successful Response
+     */
+    200: SendEmailResponse;
+};
+
+export type collectionsSendRunEmailResponse = collectionsSendRunEmailResponses[keyof collectionsSendRunEmailResponses];
+
+export type collectionsGetOverdueData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    url: '/api/v1/collections/overdue/';
+};
+
+export type collectionsGetOverdueErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsGetOverdueError = collectionsGetOverdueErrors[keyof collectionsGetOverdueErrors];
+
+export type collectionsGetOverdueResponses = {
+    /**
+     * Successful Response
+     */
+    200: OverdueOut;
+};
+
+export type collectionsGetOverdueResponse = collectionsGetOverdueResponses[keyof collectionsGetOverdueResponses];
+
+export type collectionsGetExceptionsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+        /**
+         * Rule Code
+         */
+        rule_code?: string | null;
+        /**
+         * Severity
+         */
+        severity?: string | null;
+    };
+    url: '/api/v1/collections/exceptions/';
+};
+
+export type collectionsGetExceptionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsGetExceptionsError = collectionsGetExceptionsErrors[keyof collectionsGetExceptionsErrors];
+
+export type collectionsGetExceptionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExceptionsOut;
+};
+
+export type collectionsGetExceptionsResponse = collectionsGetExceptionsResponses[keyof collectionsGetExceptionsResponses];
+
+export type collectionsGetRegionsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    url: '/api/v1/collections/regions/';
+};
+
+export type collectionsGetRegionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsGetRegionsError = collectionsGetRegionsErrors[keyof collectionsGetRegionsErrors];
+
+export type collectionsGetRegionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: RegionsOut;
+};
+
+export type collectionsGetRegionsResponse = collectionsGetRegionsResponses[keyof collectionsGetRegionsResponses];
+
+export type collectionsGetSummaryData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    url: '/api/v1/collections/summary/';
+};
+
+export type collectionsGetSummaryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsGetSummaryError = collectionsGetSummaryErrors[keyof collectionsGetSummaryErrors];
+
+export type collectionsGetSummaryResponses = {
+    /**
+     * Successful Response
+     */
+    200: SummaryOut;
+};
+
+export type collectionsGetSummaryResponse = collectionsGetSummaryResponses[keyof collectionsGetSummaryResponses];
+
+export type collectionsGetRunEventsData = {
+    body?: never;
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/v1/collections/run-log/{run_id}/events';
+};
+
+export type collectionsGetRunEventsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type collectionsGetRunEventsError = collectionsGetRunEventsErrors[keyof collectionsGetRunEventsErrors];
+
+export type collectionsGetRunEventsResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunEventsOut;
+};
+
+export type collectionsGetRunEventsResponse = collectionsGetRunEventsResponses[keyof collectionsGetRunEventsResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;

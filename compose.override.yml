@@ -25,7 +25,7 @@ services:
       - --api.insecure=true
   db:
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   adminer:
     ports:
@@ -34,15 +34,28 @@ services:
   backend:
     ports:
       - "8000:8000"
+    # host.docker.internal isn't automatic on native Docker Engine (only
+    # Docker Desktop) -- needed so the container can reach Ollama running
+    # on Windows (see COLLECTIONS_OLLAMA_API_BASE below; "localhost"
+    # inside the container means the container itself, and WSL2 mirrored
+    # networking shares Windows' network *interfaces* with WSL, but a
+    # container's loopback is always its own -- separate from both. If
+    # Ollama is bound to 127.0.0.1 only (the default), this still won't
+    # reach it from inside the container; set `OLLAMA_HOST=0.0.0.0` as a
+    # Windows environment variable and restart Ollama to fix that (same
+    # requirement, unrelated to mirrored networking, on pre-22H2 Windows
+    # setups too). Verify with: docker compose exec backend python -c
+    # "import urllib.request as u; print(u.urlopen('http://host.docker.internal:11434/api/version').read())"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: .
       dockerfile: backend/Dockerfile
     # command: sleep infinity  # Infinite loop to keep container alive doing nothing
     command:
-      - fastapi
-      - dev
-      - --host
-      - "0.0.0.0"
+      - sh
+      - -c
+      - "alembic upgrade head && fastapi dev --host 0.0.0.0"
     develop:
       watch:
         - path: ./backend
@@ -67,6 +80,7 @@ services:
       SMTP_HOST: "mailpit"
       SMTP_PORT: "1025"
       SMTP_TLS: "false"
+      COLLECTIONS_OLLAMA_API_BASE: "http://host.docker.internal:11434"
 
   mailpit:
     image: axllent/mailpit
