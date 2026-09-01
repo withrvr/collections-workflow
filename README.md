@@ -8,6 +8,44 @@ quality/exception report, with nothing silently dropped along the way.
 Backend: FastAPI + SQLModel + Postgres. Frontend: React + TanStack
 Router. Docker Compose for local dev.
 
+## Screenshots
+
+**Dashboard** — run totals, outcome/outstanding charts, recent runs, one click into upload or history.
+
+![Dashboard](docs/images/screenshot-dashboard.png)
+
+**Upload** — drag-and-drop a workbook, pick a report date, run.
+
+![Upload a workbook](docs/images/screenshot-upload.png)
+
+**Run detail** — timeline, control-gate status, and an AI-written analysis (region, ageing, and top exception rules called out, not just totals).
+
+![Run detail: timeline and AI analysis](docs/images/screenshot-run-detail-1.png)
+
+**Run detail (continued)** — region breakdown and the exception list, each with its own cause/impact/fix.
+
+![Run detail: region breakdown and exceptions](docs/images/screenshot-run-detail-2.png)
+
+**Runs list** — every upload, paginated, with a one-click download of the original file.
+
+![Runs list](docs/images/screenshot-runs-list.png)
+
+**Email summary** — send a run's result to any address; caught by Mailpit in dev.
+
+![Emailed run summary](docs/images/screenshot-email-summary.png)
+
+**Mobile — exception detail** — cause, impact, suggested fix, and owner, fully readable on a phone.
+
+![Mobile: exception detail](docs/images/screenshot-mobile-exception-detail.jpg)
+
+**Mobile — failed run** — a corrupt upload fails cleanly with a readable reason, never a raw error.
+
+![Mobile: failed/corrupt upload](docs/images/screenshot-mobile-failed-corrupt.jpg)
+
+**Mobile — passed run** — a clean run, its email sent, right from the phone.
+
+![Mobile: passed run](docs/images/screenshot-mobile-passed.jpg)
+
 **This file is deliberately short and stable.** It exists to orient
 anyone landing on the repo and point them to the real documentation —
 it does not track phase-by-phase progress itself (that's
