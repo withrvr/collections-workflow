@@ -21,7 +21,7 @@ from Phase 3: `compose.override.yml`'s dev `backend` command now runs
 
 ```
 cd backend
-uv run pytest app/collections/tests -v                       # full test suite (162 tests, ~60s incl. real Ollama calls)
+uv run pytest app/collections/tests -v                       # full test suite (168 tests, ~60s incl. real Ollama calls)
 uv run pytest app/collections/tests/validate -v               # exception rule tests only
 uv run pytest app/collections/tests/persistence -v             # run lifecycle / error contract
 uv run pytest app/collections/tests/api -v                     # API tests (TestClient, in-memory SQLite)
@@ -43,10 +43,71 @@ deterministic template when it's unavailable. Set up Ollama:
 export COLLECTIONS_OLLAMA_API_BASE=http://localhost:11434   # default; override if needed
 ```
 
+## Quality gates and agent-assisted development
+
+This section is the "how it was actually built" that a `git log` alone
+doesn't show — how correctness and consistency were enforced on every
+commit, not just at the end.
+
+**Pre-commit, on every commit** (`.pre-commit-config.yaml`, repo root):
+`ruff check --fix` and `ruff format` (Python lint + format), `mypy` and
+`ty` (two independent type checkers on `backend/app`), `biome` (frontend
+lint), `typos` (catches misspellings before they ship), plus the
+template's own file hygiene hooks and an auto-regenerated frontend SDK
+whenever `api/schemas.py` or the OpenAPI schema changes — so the
+TypeScript client can never silently drift out of sync with the backend
+it calls. None of this is optional at commit time; a failing hook blocks
+the commit.
+
+**168 tests**, run before every merge (`uv run pytest
+app/collections/tests -v`) — see "Commands" and "Testing" above for the
+full breakdown by phase. The suite is deliberately weighted toward
+exception handling (MASTER_PLAN.md section 10): every one of the 14
+rules has its own positive-and-negative test, a coverage test asserts
+none of them ever goes silently unused, and a reconciliation test proves
+the calculator's own arithmetic never creates or destroys a rupee. This
+is what "reliable" means concretely in this codebase — not a vibe, a
+gate a commit has to pass.
+
+**Agent-side build tooling.** This codebase was built with an AI coding
+agent from Phase 3 onward, using two Claude Code skills that shape how
+the agent works rather than what the product does — neither is a
+runtime dependency, neither ships in `requirements.txt`:
+
+- **[ponytail](https://github.com/DietrichGebert/ponytail)** — a YAGNI
+  ladder the agent runs against its own output before opening a merge
+  request: does this need to exist, is it already in the codebase, does
+  the standard library already do it, can it be one line instead of ten.
+  Its own published benchmark, measured on a headless agent editing this
+  exact FastAPI template, reports roughly 54% less code and 20% lower
+  cost than a no-skill baseline, with correctness-critical categories
+  (validation, error handling, security) explicitly excluded from what
+  it's allowed to cut. `/ponytail-review` ran at the end of every phase
+  in this build and produced a delete-list before each merge request.
+- **[caveman](https://github.com/JuliusBrussee/caveman)** — compresses
+  the agent's own prose (explanations, commit-message drafts, planning
+  text) while leaving code and error messages byte-exact, so more of a
+  session's context budget goes to the actual codebase instead of the
+  agent talking about it. `/caveman-commit` produced the terse
+  Conventional Commit messages this project's history uses.
+
+Together with the commit discipline below, these are the concrete
+answer to "how did you use AI to build this, not just inside it" —
+QA_PREP.md keeps this as one of the two questions worth hoping a
+reviewer asks.
+
 ## Git workflow
 
-Conventional Commits, one logical change per commit. See `AGENTS.md` at
-the repo root for the full standing instructions this build follows.
+Conventional Commits, one logical change per commit — enforced in
+practice, not just described: `type(scope): summary` under 72
+characters, with the body explaining *why* a change was made, not
+restating the diff. If a commit body needs the word "and," it's usually
+two commits. Feature-by-feature merge requests, one phase's worth of
+changes landing across several small MRs rather than one large one, so
+each is reviewable on its own and the owning documentation file is
+updated in the same commit as the behavior it describes — a docs update
+is never a separate, later task. See `AGENTS.md` at the repo root for
+the full standing instructions this build follows.
 
 ## Testing
 

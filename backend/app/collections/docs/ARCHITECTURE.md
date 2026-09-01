@@ -351,5 +351,70 @@ test suite is a reasonable next addition, not built as of Phase 8.
 
 ## Trade-offs and what breaks at scale
 
-_Filled in as decisions are made; see QA_PREP.md question 20 for the
-production-hardening answer this section will expand on._
+This project is deliberately scoped as a fifteen-minute review, not a
+platform (MASTER_PLAN.md section 1) — every trade-off below was made
+consciously, not by accident, and each has a specific, named upgrade
+path rather than an open-ended "would need more work."
+
+**Scheduler: in-process → Celery Beat / a Kubernetes CronJob.**
+`scheduler.py` is currently a stub for a single-process APScheduler job
+(Phase 11, presentation scope). APScheduler works correctly with one
+worker process; the moment there is more than one (any real horizontal
+scale-out), two workers can both pick up the same trigger unless
+coordination is added. Celery Beat or a CronJob hitting the API is the
+standard fix — same trigger, no shared in-process scheduler state to
+race on.
+
+**Structural validation: typed dataclasses → Pandera, conditionally.**
+Today's structural guarantee is `ingest/loader.py`'s per-cell type
+coercion plus `validate/schemas.py`'s declarative `SheetSchema`
+constants (see "Why `validate/schemas.py` is not Pandera" above) — this
+is deliberately Pandera-*shaped* work without the Pandera dependency,
+because there is no DataFrame anywhere in the current pipeline for
+Pandera to validate. If ingestion ever moves to a DataFrame-based
+pipeline (e.g. to support much larger workbooks via chunked/vectorized
+reads), Pandera becomes the natural fit at that point, not before —
+adding it today would mean building a throwaway DataFrame solely to
+re-check a guarantee the type system already gives.
+
+**Observability: bespoke counters → a managed platform.**
+`observability/metrics.py`'s `llm_calls_total` is a plain in-process
+counter, and `observability/logging.py` is stdlib `logging`. Both are
+sufficient for a single-instance demo where "did the LLM call succeed"
+is a yes/no question read directly off the process. At real scale, a
+managed observability layer (Prometheus + Grafana, or a hosted
+equivalent) replaces both: multi-instance counters need to be
+aggregated somewhere other than a single process's memory, and
+`run_events`-style trend detection (is the exception rate climbing
+across runs) is exactly the kind of query a time-series backend is
+built for, not something to hand-roll against Postgres indefinitely.
+
+**Exception explainer: advisory → a remediation queue.**
+`ai/roles/exception_explainer.py` explains a rule violation and
+proposes a fix; `auto_fixable` is hardcoded `False` everywhere, on
+every rung, because the LLM is never allowed to decide something is
+safe to auto-correct (AGENTS.md). The next real step here isn't
+"let the model fix it" — it's a human-approval queue: an owner reviews
+the suggested fix, approves or edits it, and *that* approved action
+(not the model's raw output) is what actually touches data. This keeps
+the same "code decides, humans approve, models never silently act"
+posture that governs the rest of the system.
+
+**Payment application: invoice-level → a proper cash-application
+matcher.** Payments are matched to the invoice they explicitly
+reference and checked against that invoice's own customer (rule E007).
+Real accounts-receivable platforms instead match cash against a
+customer's *ledger* — applying a payment across several open invoices,
+handling partial and FIFO application, and reconciling on remittance
+advice rather than a single Invoice_ID field. This is the single
+hardest and most valuable upgrade on this list, and it's also exactly
+where E007 (payment-to-invoice customer mismatch) comes from: a real
+matcher would catch that same class of problem structurally instead of
+flagging it after the fact.
+
+**GSTIN validation: format-only, by design, not by oversight.**
+`E006`/`E008` check the 15-character GSTIN pattern; there is no
+checksum digit validation. This is a genuine, documented limitation
+(see `docs/RULES.md`'s E006 entry) rather than a gap discovered later —
+worth surfacing to a reviewer directly if asked "what's the weakest
+part of this," per QA_PREP.md's own closing question.

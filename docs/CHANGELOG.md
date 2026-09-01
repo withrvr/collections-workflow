@@ -1,6 +1,13 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+All notable changes to this project are documented in this file, in the
+order they actually happened. Each version below is one phase of
+[`MASTER_PLAN.md`](../MASTER_PLAN.md)'s build — domain core, then the
+exception catalogue, then persistence, the API, the control gate, the
+LLM layer, the exception explainer, and finally the frontend — so
+reading top to bottom in reverse (`v0.1.0` upward) is a literal
+walkthrough of how the system was assembled, one working, demoable
+slice at a time, rather than a single big-bang commit.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

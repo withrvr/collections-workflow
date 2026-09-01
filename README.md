@@ -36,7 +36,7 @@ own status line).
 # Backend, native (no Docker needed for tests/scripts)
 cd backend
 uv sync
-uv run pytest app/collections/tests -v                        # 122 tests
+uv run pytest app/collections/tests -v                        # 168 tests
 uv run python -m app.collections.scripts.reference_summary    # reference numbers
 
 # Full stack (Postgres, backend, frontend, Traefik, Adminer, Mailpit)

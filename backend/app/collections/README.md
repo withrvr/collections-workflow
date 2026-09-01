@@ -1,287 +1,337 @@
 # ERP Collection Reporting Workflow
 
-The assessment deliverable for Elevent Group: an ERP collection reporting
-service built on `fastapi/full-stack-fastapi-template`. This file is the
-single source of truth for what the service does and how to run it; see
-`docs/` for internals (owned per file, see below).
+The assessment deliverable for Elevent Group: an ERP collection
+reporting service built on `fastapi/full-stack-fastapi-template`. This
+file is the single source of truth for **what the service does, why it
+is built this way, and how to run it**. Everything else — internals,
+endpoints, the rule catalogue, local setup — is owned by one other file
+each; see the map at the bottom rather than this file repeating them.
 
-Status: **Phase 8 (Frontend) complete — submission scope (Phases 0-8) done**. This README
-will be filled in as each phase lands; see `../../../docs/CHANGELOG.md`
-for what has shipped so far.
+Status: **submission scope (Phases 0-8) complete**, plus several
+presentation-scope extras (file download, email, dashboard, full
+rebrand) already pulled forward. See
+[`../../../docs/CHANGELOG.md`](../../../docs/CHANGELOG.md) for the
+exact, dated history of what shipped when.
 
-## What this does
+## The one-paragraph version
 
-Computes an overdue collections position — invoice-level and by
-region/customer — from an ERP export (Customers, Invoices, Payments,
-Region_Mapping sheets), as of a fixed report date, and flags every data
-quality or business-rule issue it finds along the way rather than
-silently dropping the affected row. Phase 1 built the pure calculation
-core (loading the workbook into typed records, computing
-outstanding/overdue/ageing/region figures); Phase 2 added the 14-rule
-exception catalogue (`docs/RULES.md`) that explains every exclusion;
-Phase 3 added a real run lifecycle — every uploaded workbook becomes a
-persisted `Run`, `COMPLETED` or `FAILED`, with a `run_events` timeline a
-non-technical user can read and no raw traceback ever reaching them.
-Phase 4 put all of that behind a real API (`docs/API.md`) — upload a
-file at `POST /collections/runs/` and drive the whole flow from
-`/docs`. Phase 5 added the control gate: any run whose exception rate
-exceeds 5% comes back `BLOCKED`, not silently passed off as clean, with
-a deterministic plain-English narrative either way. Phase 6 puts a local
-LLM (Ollama, `phi4-mini`) in front of that narrative — the model
-narrates the already-computed numbers, never raw sheets, and never gets
-the final word: a numeric guard rejects any output that invents a
-figure it wasn't given, falling through to the same deterministic
-template if the model (or the network) fails. Phase 7 adds the same
-treatment to the exception catalogue itself: every one of the 14 rules
-that fires gets a cause/impact/suggested-fix/owner explanation — batched
-once per rule code, not per row, since "why did E001 fire" has one
-answer no matter how many invoices it hit — guarded the same way (an
-explanation can't name a record ID it was never shown), and
-`auto_fixable` is hardcoded `False` everywhere: the model explains, it
-never gets to decide something is safe to auto-correct. Phase 8 puts a
-real UI in front of all of it — five routes (upload, runs list, run
-detail with a colored stage timeline, exceptions table with filters,
-management summary with the block/pass banner) that a reviewer who has
-never seen a terminal can use to upload a file and read every output.
-This closes out the **submission scope** (MASTER_PLAN.md Phases 0-8);
-Phases 9-13 are presentation-scope extras for the later live demo, not
-required for submission. See `docs/CHANGELOG.md` for what each phase
-adds.
+Upload an ERP export (Customers, Invoices, Payments, Region_Mapping),
+get back an overdue collections position — by invoice, by customer, by
+region — as of a fixed report date, plus a full data-quality report
+that explains every row it had to exclude rather than silently dropping
+it. A control gate blocks the management summary outright if more than
+5% of invoices carry a data-quality exception, so nobody reads a clean
+number that was quietly computed from dirty data. A local LLM narrates
+the result in plain English and explains each exception in business
+terms — but it never computes a rupee figure; every number in this
+system comes from typed Python arithmetic, and the model's output is
+mechanically checked against that arithmetic before it's shown to
+anyone.
 
-## How to run
+## Why it's built this way
 
+Three constraints drove every decision here, and they're worth stating
+up front because they explain choices that would otherwise look
+arbitrary:
+
+1. **The numbers must be provably correct, not just plausible.**
+   Financial figures come from typed `Decimal` arithmetic in plain
+   Python functions — never from an LLM, never from a DataFrame's
+   inferred dtype, never from parsing formatted text. This is why the
+   AI layer only ever *narrates* and *explains* a dictionary of
+   already-computed numbers, why a post-generation guard rejects any
+   model output that invents a figure, and why there's a test that
+   independently recomputes the headline numbers straight out of
+   Postgres with raw SQL and checks they still agree.
+2. **A bad row is a fact to report, not a problem to hide.** Nothing is
+   ever silently dropped. Every invoice or payment excluded from a
+   calculation carries an exception row explaining why, in a fixed
+   14-rule catalogue, with a suggested fix and an owning team. A run
+   that hits too many of these blocks automatically rather than
+   producing a falsely-clean summary.
+3. **This is a fifteen-minute review, not a platform.** Every design
+   choice was checked against "can a reviewer see, click, and
+   understand this quickly" — which is why there's a real (if
+   deliberately unauthenticated) UI on top of the API, why failures
+   read in plain English instead of a stack trace, and why the AI
+   narrative reads like an analyst's note instead of a one-line status
+   message.
+
+## How it works — the flow
+
+```mermaid
+flowchart LR
+    U[Workbook upload] --> L[load]
+    L --> V[validate]
+    V --> C[calculate]
+    C --> G[control gate]
+    G --> S[summarise]
+    S --> P[persist]
+    P --> API[REST API]
+    API --> UI[React UI]
 ```
-cd backend
-uv run python -m app.collections.scripts.reference_summary
-uv run pytest app/collections/tests -v
-```
-The script loads `fixtures/dataset_a_original.xlsx` and prints the overdue
-count, total outstanding, and region breakdown.
 
-To exercise the full pipeline end to end against the real Postgres (not
-the in-memory SQLite the test suite uses), bring up the Docker stack
-(`docker compose watch` from the repo root — the dev backend container
-runs `alembic upgrade head` automatically before starting) and open
-http://localhost:8000/docs. `POST /collections/runs/` with a workbook
-file, then drive `GET /collections/overdue`, `/exceptions`, `/regions`,
-`/summary`, `/run-log/{id}/events` from there — see `docs/API.md`.
+Six stages, run in a fixed order by one plain Python function
+(`service.execute_run`) — deliberately **not** an autonomous agent, so
+the same input always produces the same output and every step can be
+proven correct in isolation:
 
-Or use the UI: http://localhost:8000/collections/upload.
-
-## Frontend (Phase 8)
-
-Five routes, `frontend/src/routes/collections/`, no auth (matches the
-API — this is an internal ops tool, not a multi-tenant product):
-
-| Route | Shows |
+| Stage | What happens |
 |---|---|
-| `/collections/upload` | Drop a workbook, run it, land on its detail page |
-| `/collections/runs` | Every run so far, status/overdue/outstanding/exception counts |
-| `/collections/run-detail?runId=` | **The one-screen automated view.** The colored stage timeline (green/amber/red, matching MASTER_PLAN.md section 7's design exactly, expandable per stage to the underlying `run_events`), the run's `FAILED` error banner if it has one, then — inline, no click required — the full summary (block/pass banner, AI narrative, region breakdown) and the first 10 exceptions with cause/impact/fix/owner expandable per row |
-| `/collections/exceptions?runId=` | The same exceptions table, unpaginated, filterable by severity — for deep-diving past the run-detail preview |
-| `/collections/summary?runId=` | The same summary content, standalone — for sharing a direct link to just the numbers |
+| **load** | The workbook is read with `openpyxl` straight into typed (`Decimal`/`date`) records — no pandas, no DataFrame, so there's no second, looser numeric-parsing path anywhere in the system |
+| **validate** | All 14 exception rules run against the typed records; every excluded row gets a rule code, a plain-English message, a cause, an impact, a suggested fix, and an owner |
+| **calculate** | Outstanding, overdue, ageing, and region figures are computed by pure functions over the already-validated data |
+| **control gate** | The exception rate is checked against a 5% threshold. Over it, the run is `BLOCKED` — the summary still shows the numbers, but flagged, not presented as clean |
+| **summarise** | A local LLM turns the frozen numbers into a plain-English narrative — or, if it's unavailable, a deterministic template does the same job with no model at all |
+| **persist** | Every stage's outcome — the run, its timeline, its exceptions, its invoice positions — is written to Postgres, so nothing lives only in a log file |
 
-`run-detail` is deliberately the destination `upload` redirects to and
-the one page a reviewer needs: nothing is asked of them beyond
-selecting a file. Both `exceptions` and `summary` render off shared
-components (`components/Collections/ExceptionsPanel.tsx`,
-`SummaryPanel.tsx`) also embedded directly in `run-detail` — one
-implementation, never two copies to keep in sync.
+A run is *always* a real, queryable database row with a status of
+`PASSED`, `BLOCKED`, or `FAILED` — the pipeline function never raises,
+so a bad upload can never turn into an unhandled `500` and a blank
+screen. See `docs/ARCHITECTURE.md`'s "Data flow" and "The error
+contract" sections for the mechanics behind that guarantee.
 
-Built entirely on the template's own shadcn/ui components
-(`frontend/src/components/ui/`) — no new UI library. Verified end to
-end in a real (not headless-only-in-theory) browser: upload
-`dataset_a_original.xlsx`, land on a `BLOCKED` run-detail page showing
-the timeline, block banner, narrative, region breakdown, and exceptions
-table all on one screen with no further clicks, expand a row inline to
-see its fix, confirm the "open full page" links still deep-link
-correctly — zero console errors throughout. See `docs/DEVELOPMENT.md`
-for how to reproduce that check.
+On top of the pipeline: six REST endpoints (`docs/API.md`) and a
+five-page React UI (below) that together let a reviewer with no
+terminal access drive the entire flow — upload, read the timeline, read
+the exceptions, read the summary — from a browser.
 
-## Business rules
+## Business logic
 
-- Report date: `2026-07-31` (`app/collections/config.py`, never `datetime.now()`).
-- Only `Approved` invoices are included in the overdue report; `Cancelled`
-  and `Credit Note` are excluded (shown in the exception report from Phase 2 on).
-- Outstanding = Invoice Amount − valid payments received on or before the
-  report date. Tax is never added.
-- A payment is valid only if its amount is positive, it is dated on or
-  before the report date, and its customer matches the invoice's own
-  customer.
-- Overdue = Due Date strictly before the report date AND Outstanding > 0.
-- If Customer Region is blank, Region is derived from `Region_Mapping` via
-  State.
-- **Control gate**: a run's exception rate is `exception_count /
-  invoice_count`. If it exceeds 5%, the run is `BLOCKED`, never silently
-  reported as clean; if not, it `PASSED`. Never tuned to pass —
-  dataset_a_original.xlsx blocks (47.2%), and it's supposed to.
+- Report date is fixed at `2026-07-31` (`config.py`), sourced from the
+  workbook's own README sheet, never `datetime.now()` — a collection
+  position has to be reproducible from the same file on any day it's
+  re-run.
+- Only `Approved` invoices count toward the overdue report;
+  `Cancelled` and `Credit Note` invoices are excluded from it but still
+  shown in the exception report, never silently dropped.
+- Outstanding = Invoice Amount − valid payments received on or before
+  the report date. Tax is carried through for reference, never added.
+- A payment is valid only if it's positive, dated on or before the
+  report date, and its customer matches the invoice's own customer —
+  a payment that fails any of those is excluded and flagged, not
+  quietly applied anyway.
+- Overdue = Due Date strictly before the report date **and**
+  Outstanding > 0.
+- A blank Customer Region is derived from `Region_Mapping` via State,
+  never left blank in the output.
+- **The control gate**: exception rows ÷ invoice count. Over 5%, the
+  run is `BLOCKED`; at or under, it `PASSED`. The gate is never tuned
+  to pass — the given assessment file blocks at 47.2%, and that's the
+  correct output for that file, not a bug to chase away.
 
-See `docs/RULES.md` for the full exception catalogue (Phase 2).
+The full 14-rule exception catalogue — every condition, every dataset
+example, every rationale — lives in
+[`docs/RULES.md`](docs/RULES.md); a handful of documented judgement
+calls (how the gate's denominator was resolved, why an early payment
+still counts in full, ageing bucket boundaries) live in **Assumptions**
+below. Both are deliberately kept out of this section so this file
+doesn't drift out of sync with the single source of truth for either.
 
 ## Assumptions
 
-- **A payment dated before its own invoice's invoice date still counts in
-  full toward outstanding.** The workbook lists "payment before invoice"
-  only as an exception-report item, not as a reason to exclude the
-  payment from the calculation. Verified against the given dataset: the
-  reference figures (15 overdue invoices, ₹12,02,000 total, West
-  heaviest) only reconcile under this reading — excluding that payment
-  instead would land the total at ₹12,12,000. Example: PAY-2027 (dated
-  2026-06-05) still reduces INV-1004's outstanding, even though
-  INV-1004's own invoice date is 2026-06-10.
-- **Ageing bucket boundaries (0-30 / 31-60 / 61-90 / 90+ days) are a
-  standard-practice default**, not specified anywhere in the workbook.
-  Revisit if the client expects different cutoffs.
-- An invoice with an unknown customer reference, a missing due date, or a
-  non-positive amount is excluded from the overdue report (it cannot be
-  soundly attributed to a Region/Customer or compared against a due
-  date) — shown in the exception report from Phase 2 on, not silently
-  dropped.
-- **The control gate's "exception records over invoice records" reads as
-  the exception-*row* count over the invoice count**, not distinct
-  invoices affected. The wording in the brief is ambiguous (one invoice
-  can carry more than one exception; some exceptions never touch an
-  invoice_id at all — e.g. E002 on a payment). The row rate is the more
-  literal reading and does not undercount a badly-behaved invoice with
-  three exceptions as "one problem." The distinct-invoices-affected rate
-  is still reported alongside it (`GET /collections/summary`) so nothing
-  is hidden either way — see `docs/ARCHITECTURE.md`'s control gate
-  section and `control/gate.py`'s docstring.
+- **A payment dated before its own invoice's invoice date still counts
+  in full toward outstanding.** The workbook lists "payment before
+  invoice" only as an exception-report item, not a reason to exclude
+  the payment — verified against the given dataset, since the reference
+  figures below only reconcile under this reading.
+- **Ageing bucket boundaries (0-30 / 31-60 / 61-90 / 90+ days)** are a
+  standard-practice default, not specified in the workbook.
+- **The control gate's denominator is the exception-*row* count over
+  invoice count**, not distinct invoices affected — the brief's own
+  wording is ambiguous here (see `docs/ARCHITECTURE.md`'s control gate
+  section for the full reasoning), so both rates are computed and both
+  are returned by `GET /collections/summary`, not just the one that
+  drives the gate.
+- Netting an overpaid invoice (E014) against a customer's other open
+  balances, or netting a Credit Note against open invoices, are both
+  business decisions the workbook doesn't define — surfaced as
+  exceptions rather than assumed.
 
-## AI tooling used
+Reference numbers, for a quick sanity check against the given file: 25
+customers, 36 invoices, 29 payments — 15 overdue invoices totaling
+**₹12,02,000**, West the heaviest region (₹4,72,000), 17 exception rows
+(47.2% of invoices — blocks the gate).
 
-**Runtime (Phase 6):** local-first via [LiteLLM](https://docs.litellm.ai/)
-(`ai/provider.py`) against [Ollama](https://ollama.com) running
-`phi4-mini`. The LLM only ever narrates a frozen dictionary of
-already-computed numbers (`ai/roles/summary_narrator.py`'s own
-docstring: "never receives raw sheets") — it does not compute, choose,
-or correct anything (AGENTS.md). Three-rung fallback, in order: local
-Ollama, an optional configured cloud model (`ai/provider.py`, unset by
-default and never required), then a deterministic Jinja template
-(`ai/fallback.py`) that cannot fail short of a programming bug. Every
-rung's output is numeric-guarded (`ai/guard.py`): if it contains a
-number that was never given to it, it's rejected outright and the chain
-falls through — never surfaced as if it were real. Which rung actually
-produced a run's narrative is recorded on `Run.summary_source`
-(`"ollama"`/`"cloud"`/`"fallback"`) and returned by
-`GET /collections/summary`. Runs entirely without internet access —
-Ollama is local, and `tests/ai/test_summary_narrator.py`'s
-`test_narrate_uses_local_ollama_and_records_metric` proves it end to
-end against a real (not mocked) local model.
+## Validation and proof of correctness
 
-**anydoc** (`ai/context.py`): workbook-to-Markdown conversion for LLM
-context only, never a calculation source — see `docs/ARCHITECTURE.md`'s
-anydoc boundary. Still not consumed by any role as of Phase 7 —
-`exception_explainer` batches by rule code off the already-typed
-`ExceptionRow`s, not raw sheets; ready for Phase 10's schema_mapper.
+"We tested it" is not an answer a reviewer can act on; here's the actual
+evidence, in order of how convincing it is:
 
-**Exception Explainer** (`ai/roles/exception_explainer.py`, Phase 7):
-same three-rung chain and per-rung numeric-style guard as the narrator,
-but guarding record IDs instead of numbers (`ai/guard.py`'s
-`ids_are_contained`) — an explanation naming an invoice/payment/customer
-ID outside its own batch is rejected outright. The deterministic third
-rung is `RULE_METADATA`, a fixed cause/impact/fix/owner per rule code in
-the same words `docs/RULES.md` already establishes — never improvised.
-Cached per `(rule_code, sorted affected IDs)` so the overwhelmingly
-common case (re-running against the same dataset) never re-hits the
-LLM. Persisted once per `(run, rule_code)` — `RunRuleExplanation` — and
-joined onto every matching `RunException` row at
-`GET /collections/exceptions`.
+- **A coverage test asserts all 14 rules fire on the given dataset**, so
+  a rule that silently stops triggering is treated as a bug, not good
+  news — this is different from just checking "no crash."
+- **A reconciliation test proves no rupee is created or destroyed**:
+  every invoice's outstanding + valid-paid amount equals its original
+  invoice amount plus any overpayment, summed across the full 36-invoice
+  portfolio — an internal-consistency identity, not just a spot check.
+- **An independent SQL recompute** — the strongest evidence in the
+  suite. The headline figures (15 overdue, ₹12,02,000, West heaviest)
+  are computed twice, by two genuinely different code paths: once by the
+  in-memory Python calculator, and once by a raw SQL `SUM`/`GROUP BY`
+  over what actually landed in Postgres. Agreement between the two is
+  real proof the persistence layer isn't silently dropping or
+  double-counting a row, not the same arithmetic checked against itself.
+- **Every rule test asserts the exact set of IDs it should fire on**,
+  not just "fired at least once" — a rule quietly over- or under-firing
+  is caught the same way a fully silent one would be.
+- **Five deliberately broken workbooks** (missing sheet, missing column,
+  corrupt file, an unparseable cell, an empty sheet) each assert a
+  specific error code and a plain-English message with no `"Traceback"`
+  or raw exception text anywhere in it — the error contract is tested
+  against the literal user-facing string, not just "some error happened."
+- Against a **real, unmocked local Ollama model** (not a mocked stub):
+  the narrator produces a narrative and never surfaces an invented
+  number; the explainer never cites a record ID outside the exact batch
+  it was given.
 
-**Agent-side build tooling**: [ponytail](https://github.com/DietrichGebert/ponytail)
-(`/ponytail-review` before every MR) and [caveman](https://github.com/JuliusBrussee/caveman)
-for the build conversation itself — both installed and used from Phase 3
-onward, MASTER_PLAN.md section 6.
+168 tests total. The full breakdown by phase, and the exact commands to
+run any of it, live in `docs/DEVELOPMENT.md`'s "Commands" and "Testing"
+sections — this section is the *evidence*, that one is the *mechanics*.
 
-## Validation performed
+## How the AI is actually used
 
-- **162 tests** (`uv run pytest app/collections/tests -v`): loader/resolver
-  tests, boundary tests on the calculators, a positive and a negative case
-  per exception rule against hand-built records, and the tests below.
-- **Rule coverage test** (`tests/validate/test_coverage.py`): asserts every
-  one of the 14 rules fires at least once against `dataset_a_original.xlsx`,
-  and that the registry covers exactly E001-E014 — a rule that never
-  triggers is treated as a bug, not good news.
-- **Reconciliation tests** (`tests/test_reconcile.py`): two identities
-  proving nothing silently vanishes. Every invoice's
-  `outstanding + valid_paid == invoice_amount + overpaid`, summed across
-  the full 36-invoice portfolio; and every payment rupee is either applied
-  to reduce some invoice's outstanding or explicitly unapplied, with every
-  unapplied payment traceable to an exception row. These are
-  internal-consistency checks — verifying the calculator's own arithmetic
-  never creates or destroys a rupee — not an independently-derived second
-  method.
-- **Exact-ID assertions throughout**, not just "fires at least once":
-  every rule test and the reference-number regression test assert the
-  precise set of invoice/payment/customer IDs a rule or calculation
-  should produce, so a rule silently over- or under-firing is caught, not
-  just a rule going fully silent.
-- **SQL crosscheck** (`tests/persistence/test_sql_crosscheck.py`, Phase 3):
-  the independently-derived second method the reconciliation tests above
-  deliberately weren't. Runs `execute_run` against dataset A, then
-  aggregates the persisted `RunInvoicePosition` rows straight out of the
-  database with a SQL `SUM`/`GROUP BY` — a genuinely different code path
-  from `scripts/reference_summary.py`'s in-memory Python loop — and
-  checks it against the same reference numbers (15 overdue, ₹12,02,000,
-  West heaviest). Agreement between the two is real evidence the
-  persistence layer isn't silently dropping or double-counting a row.
-- **Error-contract tests** (`tests/persistence/test_service.py`, Phase 3):
-  five deliberately broken workbooks (missing sheet, missing column,
-  corrupt/non-xlsx file, an unparseable cell) each assert the resulting
-  run is `FAILED` with a specific `error_code` and a plain-English
-  `error_message` — and assert the literal strings `"Traceback"`/`"Error"`
-  never appear in it, not just that *some* message exists.
-- **API tests** (`tests/api/test_api.py`, Phase 4): the whole flow a
-  reviewer would drive from `/docs` — upload, list, detail, overdue,
-  exceptions (with rule/severity filters), regions, summary, run-log —
-  against dataset A, plus a broken-upload case asserting `200` (not
-  `500`) with a `FAILED` run in the body.
-- **Control gate tests** (`tests/control/test_gate.py`, Phase 5): the
-  threshold boundary (exactly 5% passes, just over blocks), zero-invoice
-  edge case, and the row-rate/distinct-rate divergence on a
-  repeat-offender invoice. **Fallback narrative tests**
-  (`tests/ai/test_fallback.py`): the deterministic Jinja summary for
-  both a `BLOCKED` and a `PASSED` run. **`tests/persistence/test_service.py`**
-  proves the actual Phase 5 done-when directly: dataset A's real run
-  blocks, `dataset_b_clean.xlsx`'s real run (generated by
-  `scripts/make_fixtures.py`, every row touched by any exception rule
-  removed) passes.
-- **LLM tests** (`tests/ai/`, Phase 6): `test_guard.py` — matching
-  numbers pass, an invented number fails, a reformatted date (hyphen vs.
-  prose) is not mistaken for a negative sign. `test_summary_narrator.py`
-  — a real (not mocked) call to local Ollama produces a narrative and
-  increments `llm_calls_total` (skipped gracefully if Ollama isn't
-  reachable, so this suite never hard-fails on a machine without it),
-  and the fallback chain reaches the deterministic template correctly
-  when Ollama is unreachable (`monkeypatch`, no real network dependency
-  for that assertion). `test_provider.py`, `test_context.py`.
-- **Explainer tests** (`tests/ai/test_exception_explainer.py`, Phase 7):
-  every one of the 14 rules that fires on dataset A gets an explanation
-  (`set(explanations) == set(RULE_METADATA)`), `auto_fixable` is `False`
-  across the board, the fallback rung reproduces `RULE_METADATA`
-  verbatim when Ollama is unreachable, and — against a real, unmocked
-  local model — no explanation's `cause` field ever mentions a record ID
-  outside the exact set of IDs that rule actually fired on in that
-  batch. `test_guard.py` extends the same file with `ids_are_contained`
-  cases (matching ID passes, an unlisted ID fails, case-insensitive
-  matching, no-IDs-present trivially passes).
-- **Frontend** (Phase 8): verified manually, once, in a real headless
-  Chromium against the actual Docker-served app — not just a
-  `tsc`/`vite build` pass. Uploaded `dataset_a_original.xlsx`, landed on
-  its `BLOCKED` run-detail page, expanded a timeline stage, clicked
-  through to exceptions (cause/impact/fix/owner rendered per row) and
-  summary (block banner, narrative with its source badge, region
-  table) — zero browser console errors throughout. See
-  `docs/DEVELOPMENT.md` for the reproduction steps. No automated
-  Playwright suite committed yet.
+The short version a hiring reader can act on: **the model never
+touches a number.** It writes prose about numbers someone else already
+computed, and everything it writes is mechanically checked before it's
+shown to anyone. The longer version, because "we used AI" means
+nothing without the guardrails:
 
-## Owning-doc map
+**One provider seam, two roles, three-rung fallback.** A single
+LiteLLM integration (`ai/provider.py`) talks to a local Ollama model
+(`phi4-mini`, the default and the only rung exercised without extra
+setup) and, only if explicitly configured, an optional cloud model —
+never required, off by default, and this project runs and was
+demonstrated end to end with the network disconnected. Two independent
+roles sit on top of that one seam:
 
-| File | Owns |
+- **`summary_narrator`** writes the run's management summary — the
+  plain-English paragraph a non-technical reader sees first: what ran,
+  what's overdue, which region is heaviest, how many exceptions, and
+  whether the gate passed or blocked.
+- **`exception_explainer`** writes the cause/impact/suggested-fix/owner
+  behind every exception rule that fired — batched once per rule code,
+  not once per row, because "why did rule E001 fire" has exactly one
+  answer no matter how many invoices it hit.
+
+If the local model is unreachable, an optional cloud model is tried
+next (when configured); if that's also unavailable, a deterministic
+Jinja template produces the same shape of output with no model
+involved at all. **Every run records which of the three actually
+produced its text** (`summary_source` / `explanation_source`:
+`"ollama"` / `"cloud"` / `"fallback"`) and shows it in the UI as a
+badge — never presented as if a model wrote it when it didn't.
+
+**Why the model can't invent a number.** Both roles' prompts contain
+only a frozen dictionary of already-computed figures — never the raw
+workbook. Every output, from every rung, is run through a
+post-generation guard (`ai/guard.py`) before it's accepted: one check
+extracts every numeric token the model wrote and rejects the output
+outright if any of them wasn't in the input it was given; a second does
+the same for record IDs, so an exception explanation can't cite an
+invoice or customer it was never shown. A rejected output isn't shown
+half-broken — the chain just falls through to the next rung. This is
+the mechanism that turns "the LLM only narrates" from a rule someone
+followed into something enforced in code.
+
+**anydoc — why it's in the stack even though no live role calls it
+yet.** `ai/context.py` converts a workbook straight to compact Markdown
+for LLM context, in single-digit milliseconds, with no external
+service. The point of it is **token efficiency and reliability for a
+small local model**: sending a workbook's structure as compact Markdown
+instead of raw JSON keeps a prompt small enough for a 4B-parameter
+model to handle its context window reliably, instead of truncating or
+losing structure on a large, verbose payload. It's wired and tested
+today, reserved for the schema-mapping role that reads a *renamed*
+workbook (presentation-scope, not required for this submission) —
+being honest about that is more useful to a reviewer than overstating
+what's active. What's non-negotiable either way, submission or not, is
+the boundary it's built under and never crosses:
+
+```
+ALLOWED   workbook -> anydoc -> markdown -> LLM context
+BANNED    workbook -> anydoc -> markdown -> parse -> financial calculation
+```
+
+A Markdown table cell is a formatted string that has already lost
+precision and type — every number in this system comes from `openpyxl`
+reading a typed cell directly, never from parsing rendered text, and
+anydoc's output is never allowed anywhere near that path.
+
+Full mechanics — the exact guard functions, the caching strategy, the
+Docker/Ollama networking setup — are `docs/ARCHITECTURE.md`'s job, in
+"The LLM layer" and "The anydoc boundary" sections; this section is the
+"why," that one is the "how."
+
+## The UI — built so a non-technical reviewer needs nothing else
+
+Five routes, no login (this is an internal ops tool, not a multi-tenant
+product — the API behind it has no auth either, deliberately):
+
+| Route | What it's for |
 |---|---|
-| `README.md` (this file) | What it does, how to run, business rules, assumptions, AI tooling, validation |
-| `docs/ARCHITECTURE.md` | Components, data flow, decisions, trade-offs |
-| `docs/API.md` | Every endpoint: method, path, params, response schema, error codes |
-| `docs/RULES.md` | The exception rule catalogue, E001-E014 |
-| `docs/DEVELOPMENT.md` | Local setup, commands, git workflow, testing |
-| `docs/DEMO.md` | Presentation runbook |
+| `/collections/upload` | Drag a workbook onto the page (native HTML5 drag-and-drop) or click to browse, run it, land straight on the result |
+| `/collections/run-detail?runId=` | **The one-screen view.** A colored stage timeline — green through a healthy stage, amber where the gate blocks, red on failure — expandable per stage down to the exact event; then, inline with no further clicks, the block/pass banner, the AI narrative with its source badge, the region breakdown, and the first 10 exceptions with cause/impact/fix/owner expandable per row |
+| `/collections/exceptions?runId=` | The full exception list, filterable by rule and severity, for deep-diving past the run-detail preview |
+| `/collections/summary?runId=` | The same summary content alone, for sharing a direct link to just the numbers |
+| `/collections/runs` | Every run so far, paginated, with a download link for the original upload |
+
+**Step-by-step failure visibility is the point of the timeline, not an
+afterthought.** A `FAILED` run doesn't produce a blank error page — it
+lands on the exact same run-detail view, with the exact stage that
+failed shown in red and a plain-English reason (never a raw traceback;
+see `docs/ARCHITECTURE.md`'s error contract) attached to it. Someone
+with no server access can answer "what happened to my file, and at
+which step" unaided, straight from the browser.
+
+Built entirely on the template's own shadcn/ui components — no new UI
+library — and verified manually end to end in a real browser against
+the Docker-served app: upload, land on a `BLOCKED` run-detail page,
+expand a timeline stage, click through to exceptions and summary, zero
+console errors throughout.
+
+## Screenshots
+
+`images/` in this folder holds the walkthrough screenshots referenced
+below — upload, the run-detail timeline, an expanded exception, and the
+management summary. Add them there under the filenames listed in
+[`images/README.md`](images/README.md) and this section will render
+them inline:
+
+```
+![Upload](images/upload.png)
+![Run detail — blocked](images/run-detail-blocked.png)
+![Exception expanded](images/exception-expanded.png)
+![Summary](images/summary.png)
+```
+
+## Technology used
+
+| Layer | Choice | Why |
+|---|---|---|
+| API framework | FastAPI (unmodified `fastapi/full-stack-fastapi-template` base) | Supplies everything not being assessed — Postgres/SQLModel/Alembic, Docker Compose, CI, a React frontend — so every commit on top of the init commit is this project's own work, and the diff is the deliverable |
+| Data model | SQLModel + Alembic | One ORM layer for both the Pydantic-style models and the SQL schema, with real migrations |
+| Money/dates | `Decimal` / `date`, never `float`/`datetime.now()` | Financial figures can't tolerate binary floating-point rounding, and a report date has to be reproducible, not clock-dependent |
+| Workbook parsing | `openpyxl` (no pandas) | Typed cell access straight into typed records — no second, looser dtype-inference path for money to travel through |
+| LLM runtime | Ollama (local, `phi4-mini`) via LiteLLM | Keeps financial data on the machine by default; LiteLLM makes the cloud fallback a one-env-var swap, not a rewrite |
+| Context conversion | anydoc (`firecrawl-anydoc`) | Compact Markdown for LLM prompts only — see "How the AI is actually used" above |
+| Frontend | React + TanStack Router + shadcn/ui | The template's own stack; no new UI dependency added anywhere in this project |
+| Testing | pytest, 168 tests | Unit, boundary, reconciliation, SQL-crosscheck, API, and real (unmocked) LLM tests — see `docs/DEVELOPMENT.md` |
+| Quality gates | ruff, mypy, ty, biome, pre-commit | Enforced on every commit — see `docs/DEVELOPMENT.md`'s "Quality gates and agent-assisted development" |
+
+## Documentation map
+
+Each fact here lives in exactly one file; everything else links to it
+rather than repeating it:
+
+| File | Read it for |
+|---|---|
+| **README.md** (this file) | What it does, why it's built this way, business rules, assumptions, the AI design, the UI |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Every component, the data flow, the *how* behind every decision above, trade-offs, what changes at production scale |
+| [`docs/API.md`](docs/API.md) | Every endpoint — method, path, params, response schema, error codes |
+| [`docs/RULES.md`](docs/RULES.md) | The exception rule catalogue, E001-E014, one entry each |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Local setup, every test/lint command, git workflow, and how this codebase was actually built with agent tooling |
+| [`docs/DEMO.md`](docs/DEMO.md) | The live presentation runbook |
+| [`../../../docs/CHANGELOG.md`](../../../docs/CHANGELOG.md) | The dated, phase-by-phase history of everything that shipped |
+| [`../../../QA_PREP.md`](../../../QA_PREP.md) | Twenty rehearsed questions a reviewer is likely to ask, answered against this exact codebase |
+| [`../../../MASTER_PLAN.md`](../../../MASTER_PLAN.md) | The original design and phase plan this build followed |
