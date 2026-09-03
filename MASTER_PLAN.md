@@ -1,6 +1,5 @@
-# ERP Collection Reporting Workflow: Master Plan v3
-Assessment for Elevent Group. Supersedes Blueprint v1 and v2.
-Companion document: `QA_PREP.md` (the twenty questions this design answers).
+# ERP Collection Reporting Workflow: Project Plan
+Companion document: `QA_PREP.md` (a design-rationale FAQ this plan answers).
 ---
 ## 1. Goal, restated from the source of truth
 The email lists deliverables. The **README sheet inside the workbook** defines the
@@ -16,18 +15,18 @@ Non-negotiables extracted from the workbook:
 | Payments after report date do not reduce the position | Date filter before aggregation |
 | **Do not silently delete problematic rows** | Every exclusion emits an exception row |
 | Blank Region derived from Region_Mapping via State | Enrichment step, never a blank output |
-Graded on: business understanding, validation approach, exception handling, code
-structure, responsible AI use, clarity of explanation.
-**This is an MVP for a presentation, not a platform.** Optimise for what a
-reviewer can see, click, and understand in fifteen minutes.
+Design priorities: business understanding, validation approach, exception
+handling, code structure, responsible AI use, clarity of explanation.
+**This is an MVP for a walkthrough, not a platform.** Optimise for what
+someone can see, click, and understand in fifteen minutes.
 ---
-## 2. Two deadlines, two scopes
-| Milestone | Deadline | Scope |
-|---|---|---|
-| **Submission** | 2 days | Phases 0 to 8. Code, README, working API, minimal UI |
-| **Presentation** | Later, date TBC | Phases 9 to 13. They hand over a second workbook live |
+## 2. Two phases of scope: core and extended
+| Milestone | Scope |
+|---|---|
+| **Core** | Phases 0 to 8. Code, README, working API, minimal UI |
+| **Extended** | Phases 9 to 13. Handling a second, differently-shaped workbook live |
 Design every phase so that stopping at the end of it still leaves a demoable
-system. Never end a day mid-phase.
+system. Never leave a phase half-finished.
 ---
 ## 3. The second-workbook problem
 At the presentation they will hand over a different file. Three ways that file
@@ -58,7 +57,7 @@ after that is your diff, which is exactly what a reviewer wants to see.
 The frontend that was dead weight in v2 is now an asset, since a team needs to
 view results without reading logs. Keep it.
 ```
-backend/app/collections/           # the entire assessment service, one folder
+backend/app/collections/           # the entire collections service, one folder
   __init__.py
   config.py                        # report date, thresholds, LLM settings
   contracts.py                     # CanonicalCustomer/Invoice/Payment/RegionMap
@@ -102,10 +101,10 @@ backend/app/collections/           # the entire assessment service, one folder
   docs/                            # see section 5
   fixtures/
   tests/
-frontend/src/routes/collections/   # the assessment UI
+frontend/src/routes/collections/   # the collections UI
   runs.tsx  run-detail.tsx  exceptions.tsx  summary.tsx  upload.tsx  mapping.tsx
 ```
-One folder, one concern, no assessment code leaking into the template's own
+One folder, one concern, no collections code leaking into the template's own
 modules. A reviewer can `ls backend/app/collections` and see the whole design.
 Wire the router into the template's `app/api/main.py` with a single include line.
 That one-line touch is the only template file you modify.
@@ -114,7 +113,7 @@ That one-line touch is the only template file you modify.
 Six files, strict ownership. A fact lives in exactly one file; others link to it.
 | File | Owns | Never contains |
 |---|---|---|
-| `README.md` (service root) | **The assessment deliverable.** What it does, how to run, business rules, assumptions, AI tooling used, validation performed | Architecture internals, endpoint schemas |
+| `README.md` (service root) | **The primary deliverable.** What it does, how to run, business rules, assumptions, AI tooling used, validation performed | Architecture internals, endpoint schemas |
 | `docs/ARCHITECTURE.md` | Components, data flow, why each decision was made, trade-offs, what breaks at scale | How to run, endpoint payloads |
 | `docs/API.md` | Every endpoint: method, path, params, response schema, status codes, error codes | Business rationale, setup |
 | `docs/RULES.md` | The exception rule catalogue. Single source of truth for E001 to E014 | Anything not a rule |
@@ -241,7 +240,7 @@ One MR per phase. MR description template lives in
 ```markdown
 ## Phase N: <name>
 ### What this adds
-### Assessment requirement served
+### Requirement served
 ### Docs updated
 - [ ] README.md   - [ ] ARCHITECTURE.md   - [ ] API.md
 - [ ] RULES.md    - [ ] DEVELOPMENT.md    - [ ] CHANGELOG.md
@@ -259,13 +258,13 @@ SemVer, tagged on merge to `main`.
 | `v0.2.0` | Domain core |
 | `v0.3.0` | Validation |
 | ... | one minor per phase |
-| `v1.0.0` | Submission-ready |
+| `v1.0.0` | Core scope complete |
 | `v1.1.0`+ | Presentation hardening |
 `CHANGELOG.md` updated in the same MR, never retrofitted.
 ---
 ## 9. Phases
 Each phase: branch, build, docs, `/ponytail-review`, MR, tag, merge.
-### Submission scope
+### Core scope
 **Phase 0: Foundation** `v0.1.0`
 Clone template, init commit. Add `collections` package skeleton and docs
 skeleton. Docker Compose up with Postgres. Health endpoint returns green.
@@ -303,13 +302,13 @@ Batched by rule code. Cause, impact, suggested fix, owner. `auto_fixable`
 hardcoded false. Guarded and cached.
 *Done when:* every exception row carries an explanation, and the explainer never
 invents an ID absent from its input.
-**Phase 8: Frontend** `v0.9.0` then `v1.0.0` on submission
+**Phase 8: Frontend** `v0.9.0` then `v1.0.0` on core-scope completion
 Five routes: runs list, run detail with timeline, exceptions table with filters,
 summary with block banner, upload. Template's shadcn/ui components throughout.
 *Done when:* someone who has never seen the terminal can upload a file and read
 every output.
-**Submission cut line. Everything above ships in two days.**
-### Presentation scope
+**Core scope cut line — everything above is the core build.**
+### Extended scope
 **Phase 9: Exports** `v1.1.0`
 CSV per report, PDF management pack. Download buttons on every view.
 **Phase 10: Multi-workbook** `v1.2.0`

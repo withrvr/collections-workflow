@@ -18,7 +18,7 @@ API returns, every request and test script actually ran.
 2. **Runs > Create Run - Dataset A (Blocks)** — click into the Body tab,
    click **Select File** next to `file`, choose
    `backend/app/collections/fixtures/dataset_a_original.xlsx` (or your
-   own copy of the assessment workbook). Send. The test script saves the
+   own copy of the sample workbook). Send. The test script saves the
    returned run's id into `{{run_id}}` automatically — nothing else to
    configure.
 3. Open **Reports** folder, run every request top to bottom against that

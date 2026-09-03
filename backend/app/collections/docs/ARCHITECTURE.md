@@ -4,7 +4,7 @@ Owns: components, data flow, why each decision was made, trade-offs, what
 breaks at scale. Does not own: how to run anything (see `DEVELOPMENT.md`),
 endpoint payloads (see `API.md`).
 
-Status: **Phase 8 complete -- submission scope (Phases 0-8) done.** Populated phase by phase as components land.
+Status: **Phase 8 complete -- core scope (Phases 0-8) done.** Populated phase by phase as components land.
 
 ## Components
 
@@ -143,7 +143,7 @@ itself.
 `control/gate.py`'s `evaluate_gate` is a pure function: invoice count in,
 `GateResult` out. It is deliberately never tuned to pass —
 `dataset_a_original.xlsx` blocks (47.2%), and that is the correct,
-expected output for the given assessment file, not a bug to chase away.
+expected output for the given sample file, not a bug to chase away.
 
 QA_PREP.md Q8 flags that the brief's wording, "exception records over
 invoice records," is ambiguous: one invoice can carry more than one
@@ -358,7 +358,7 @@ path rather than an open-ended "would need more work."
 
 **Scheduler: in-process → Celery Beat / a Kubernetes CronJob.**
 `scheduler.py` is currently a stub for a single-process APScheduler job
-(Phase 11, presentation scope). APScheduler works correctly with one
+(Phase 11, extended scope). APScheduler works correctly with one
 worker process; the moment there is more than one (any real horizontal
 scale-out), two workers can both pick up the same trigger unless
 coordination is added. Celery Beat or a CronJob hitting the API is the

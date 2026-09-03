@@ -72,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2026-08-31
 
-**Submission scope (MASTER_PLAN.md Phases 0-8) complete.**
+**Core scope (MASTER_PLAN.md Phases 0-8) complete.**
 
 ### Added
 
@@ -271,7 +271,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   amounts, invalid/missing GSTIN, payment-to-invoice customer mismatch,
   payment after report date, payment before invoice date, Cancelled/Credit
   Note status, duplicate source system reference, and overpayment (E014,
-  added beyond the assessment's required list).
+  added beyond the original required list).
 - `docs/RULES.md`: complete 14-rule catalogue, one entry per code, with
   condition, dataset A trigger, exclusion behavior, and rationale.
 - Test suite additions under `backend/app/collections/tests/` (65 new
@@ -293,7 +293,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `backend/app/collections/fixtures/dataset_a_original.xlsx`: the given
-  assessment workbook, committed as a reproducible fixture.
+  sample workbook, committed as a reproducible fixture.
 - `openpyxl` runtime dependency for reading xlsx workbooks with typed cells.
 - `contracts.py`: Decimal/date-typed canonical dataclasses (`CanonicalCustomer`,
   `CanonicalInvoice`, `CanonicalPayment`, `RegionMap`, `CanonicalDataset`).
