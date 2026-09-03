@@ -192,7 +192,7 @@ needs investigation, not an automatic guess.
 `Invoice.invoice_amount`.
 **Fires on:** INV-1007 — invoice amount 88,000; PAY-2008 (30,000) +
 PAY-2028 (80,000) = 110,000, an overpayment of 22,000.
-**Not on the assessment's required list** — added because the data
+**Not on the original required list** — added because the data
 called for it (see QA_PREP.md Q5).
 **Excludes nothing further:** `compute_outstanding` already floors at
 zero, so no negative/credit figure leaks into the overdue report; this

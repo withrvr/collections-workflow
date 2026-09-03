@@ -1,8 +1,8 @@
-# Twenty Questions They Will Ask
+# Design Rationale: Twenty Questions and Answers
 
-Each entry: the question, the answer, and the design decision that makes the
-answer true. If a design decision here is not in `MASTER_PLAN.md`, one of the two
-documents is wrong.
+Each entry: a question worth asking about this design, the answer, and the
+design decision that makes the answer true. If a design decision here is not
+in `MASTER_PLAN.md`, one of the two documents is wrong.
 
 ---
 
@@ -204,9 +204,9 @@ with a different owner.
 
 **19. Why did you use the official FastAPI template rather than starting clean?**
 
-It supplies the parts that are not being assessed and would otherwise consume the
+It supplies the parts that aren't the point of this project and would otherwise consume the
 timeline: Postgres with SQLModel and Alembic, Docker Compose, auth, CI, and a
-React frontend with shadcn/ui. All assessment code lives in one folder,
+React frontend with shadcn/ui. All collections code lives in one folder,
 `app/collections`, with a single line wiring the router in. The initial commit is
 the unmodified template, so every subsequent commit is our own work and the diff
 is the deliverable.
@@ -228,7 +228,7 @@ AR platforms and where E007 actually comes from.
 
 ---
 
-## Two you should hope they ask
+## Two worth hoping someone asks
 
 **How did you use AI to build this, not just inside it?**
 

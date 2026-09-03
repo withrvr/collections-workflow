@@ -89,9 +89,9 @@ for the full command reference.
 ## Repo layout
 
 ```
-backend/app/collections/     the entire assessment service — one folder,
+backend/app/collections/     the entire collections service — one folder,
                               one concern, see MASTER_PLAN.md section 4
-frontend/src/routes/collections/   the assessment UI
+frontend/src/routes/collections/   the collections UI
 docs/CHANGELOG.md            this project's own history
 MASTER_PLAN.md               design and phase-by-phase build plan
 QA_PREP.md                   companion doc: the questions MASTER_PLAN.md answers

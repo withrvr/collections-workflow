@@ -3,7 +3,7 @@
 Owns: local setup, commands, git workflow, commit format, testing,
 release process. Does not own: business logic (see `README.md`).
 
-Status: **Phase 8 complete — submission scope (Phases 0-8) done.**
+Status: **Phase 8 complete — core scope (Phases 0-8) done.**
 
 ## Local setup
 

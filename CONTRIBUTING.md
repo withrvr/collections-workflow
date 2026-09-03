@@ -1,9 +1,8 @@
 # Contributing
 
-This is an assessment submission repo for Elevent Group (ERP Collection
-Reporting Workflow) — not an open-source project accepting outside
-contributions. This file documents the actual working conventions this
-repo follows, for anyone reviewing or continuing the work.
+This repo is not currently accepting outside contributions. This file
+documents the actual working conventions it follows, for anyone reviewing
+or continuing the work.
 
 ## Workflow
 
@@ -31,7 +30,7 @@ anything under `backend/app/collections/`.
 
 ## Pull requests
 
-Each PR follows the template: what it adds, which assessment requirement
-it serves, which docs were updated, verification commands run, and known
-gaps carried to the next phase. Self-review before merge; run
-`/ponytail-review` on the diff first.
+Each PR follows the template: what it adds, which requirement it serves,
+which docs were updated, verification commands run, and known gaps carried
+to the next phase. Self-review before merge; run `/ponytail-review` on the
+diff first.

@@ -1,15 +1,15 @@
 # ERP Collection Reporting Workflow
 
-The assessment deliverable for Elevent Group: an ERP collection
-reporting service built on `fastapi/full-stack-fastapi-template`. This
-file is the single source of truth for **what the service does, why it
-is built this way, and how to run it**. Everything else — internals,
-endpoints, the rule catalogue, local setup — is owned by one other file
-each; see the map at the bottom rather than this file repeating them.
+An ERP collection reporting service built on
+`fastapi/full-stack-fastapi-template`. This file is the single source
+of truth for **what the service does, why it is built this way, and
+how to run it**. Everything else — internals, endpoints, the rule
+catalogue, local setup — is owned by one other file each; see the map
+at the bottom rather than this file repeating them.
 
-Status: **submission scope (Phases 0-8) complete**, plus several
-presentation-scope extras (file download, email, dashboard, full
-rebrand) already pulled forward. See
+Status: **core scope (Phases 0-8) complete**, plus several extended-scope
+extras (file download, email, dashboard, full rebrand) already pulled
+forward. See
 [`../../../docs/CHANGELOG.md`](../../../docs/CHANGELOG.md) for the
 exact, dated history of what shipped when.
 
@@ -117,7 +117,7 @@ the exceptions, read the summary — from a browser.
   never left blank in the output.
 - **The control gate**: exception rows ÷ invoice count. Over 5%, the
   run is `BLOCKED`; at or under, it `PASSED`. The gate is never tuned
-  to pass — the given assessment file blocks at 47.2%, and that's the
+  to pass — the given sample file blocks at 47.2%, and that's the
   correct output for that file, not a bug to chase away.
 
 The full 14-rule exception catalogue — every condition, every dataset
@@ -243,10 +243,10 @@ instead of raw JSON keeps a prompt small enough for a 4B-parameter
 model to handle its context window reliably, instead of truncating or
 losing structure on a large, verbose payload. It's wired and tested
 today, reserved for the schema-mapping role that reads a *renamed*
-workbook (presentation-scope, not required for this submission) —
-being honest about that is more useful to a reviewer than overstating
-what's active. What's non-negotiable either way, submission or not, is
-the boundary it's built under and never crosses:
+workbook (extended scope, not yet part of the core build) — being
+honest about that is more useful to a reviewer than overstating what's
+active. What's non-negotiable either way is the boundary it's built
+under and never crosses:
 
 ```
 ALLOWED   workbook -> anydoc -> markdown -> LLM context
@@ -292,24 +292,15 @@ console errors throughout.
 
 ## Screenshots
 
-`images/` in this folder holds the walkthrough screenshots referenced
-below — upload, the run-detail timeline, an expanded exception, and the
-management summary. Add them there under the filenames listed in
-[`images/README.md`](images/README.md) and this section will render
-them inline:
-
-```
-![Upload](images/upload.png)
-![Run detail — blocked](images/run-detail-blocked.png)
-![Exception expanded](images/exception-expanded.png)
-![Summary](images/summary.png)
-```
+Walkthrough screenshots — the dashboard, upload, the run-detail timeline
+with its AI-written analysis, the exceptions list, and the mobile views —
+live in the [root README](../../../README.md#screenshots).
 
 ## Technology used
 
 | Layer | Choice | Why |
 |---|---|---|
-| API framework | FastAPI (unmodified `fastapi/full-stack-fastapi-template` base) | Supplies everything not being assessed — Postgres/SQLModel/Alembic, Docker Compose, CI, a React frontend — so every commit on top of the init commit is this project's own work, and the diff is the deliverable |
+| API framework | FastAPI (unmodified `fastapi/full-stack-fastapi-template` base) | Supplies everything outside this project's own scope — Postgres/SQLModel/Alembic, Docker Compose, CI, a React frontend — so every commit on top of the init commit is this project's own work, and the diff is the deliverable |
 | Data model | SQLModel + Alembic | One ORM layer for both the Pydantic-style models and the SQL schema, with real migrations |
 | Money/dates | `Decimal` / `date`, never `float`/`datetime.now()` | Financial figures can't tolerate binary floating-point rounding, and a report date has to be reproducible, not clock-dependent |
 | Workbook parsing | `openpyxl` (no pandas) | Typed cell access straight into typed records — no second, looser dtype-inference path for money to travel through |
@@ -333,5 +324,5 @@ rather than repeating it:
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Local setup, every test/lint command, git workflow, and how this codebase was actually built with agent tooling |
 | [`docs/DEMO.md`](docs/DEMO.md) | The live presentation runbook |
 | [`../../../docs/CHANGELOG.md`](../../../docs/CHANGELOG.md) | The dated, phase-by-phase history of everything that shipped |
-| [`../../../QA_PREP.md`](../../../QA_PREP.md) | Twenty rehearsed questions a reviewer is likely to ask, answered against this exact codebase |
+| [`../../../QA_PREP.md`](../../../QA_PREP.md) | Twenty design-rationale questions and answers, grounded in this exact codebase |
 | [`../../../MASTER_PLAN.md`](../../../MASTER_PLAN.md) | The original design and phase plan this build followed |
