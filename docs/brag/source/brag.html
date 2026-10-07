@@ -1,0 +1,453 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Collections Workflow brag</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --card: #171717;
+    --fg: #fafafa;
+    --muted: #a3a3a3;
+    --border: rgba(255,255,255,.10);
+    --primary: oklch(0.65 0.10687 182.4689);
+    --teal: #0d9488;
+    --destructive: oklch(0.704 0.191 22.216);
+    --destructive-solid: #b91c1c;
+    --amber: #f59e0b;
+    --green: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+  body { font-family: "Inter", system-ui, sans-serif; color: var(--fg); -webkit-font-smoothing: antialiased; }
+  .mono { font-family: "DejaVu Sans Mono", monospace; }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+  #glow { position: absolute; width: 1600px; height: 1600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(13,148,136,.16) 0%, rgba(13,148,136,0) 60%); }
+  #dots { position: absolute; inset: -40px;
+    background-image: radial-gradient(rgba(255,255,255,.06) 1.5px, transparent 1.5px);
+    background-size: 40px 40px; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+
+  /* ---------- scene 1: hook ---------- */
+  #grid { position: absolute; left: 50%; top: 50%; width: 1880px; display: grid;
+    grid-template-columns: repeat(6, 1fr); gap: 14px; transform: translate(-50%,-50%); }
+  .tile { height: 150px; border: 1px solid var(--border); border-radius: 14px; background: var(--card);
+    padding: 18px 22px; position: relative; overflow: hidden; }
+  .tile .id { font-size: 26px; font-weight: 600; }
+  .tile .meta { font-size: 20px; color: var(--muted); margin-top: 6px; }
+  .tile .code { position: absolute; right: 16px; top: 16px; font-size: 18px; font-weight: 700;
+    background: var(--destructive-solid); color: #fff; padding: 3px 10px; border-radius: 999px; opacity: 0; }
+  .tile .wash { position: absolute; inset: 0; background: rgba(220,38,38,.22); border: 2px solid rgba(248,113,113,.9);
+    border-radius: 14px; opacity: 0; }
+  #hookShade { position: absolute; inset: 0;
+    background: radial-gradient(ellipse 900px 380px at 50% 50%, rgba(10,10,10,.96) 30%, rgba(10,10,10,.55) 100%); }
+  #hookText { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; }
+  #hookText .l { font-size: 112px; font-weight: 800; letter-spacing: -3px; line-height: 1.08; }
+  #hookText .l2 { color: #f87171; }
+
+  /* ---------- scene 2: reveal + upload ---------- */
+  #brand { position: absolute; display: flex; align-items: center; gap: 28px; transform-origin: 0 50%; }
+  #brand img { width: 120px; height: 120px; }
+  #brand .name { font-size: 84px; font-weight: 800; letter-spacing: -2px; }
+  #brand .sub { font-size: 32px; color: var(--muted); margin-top: 6px; }
+  #uploadCard { position: absolute; left: 880px; top: 250px; width: 900px; border: 1px solid var(--border);
+    border-radius: 22px; background: var(--card); padding: 44px; }
+  #uploadCard h3 { font-size: 30px; font-weight: 600; }
+  #uploadCard .hint { font-size: 22px; color: var(--muted); margin-top: 8px; }
+  #drop { margin-top: 30px; height: 200px; border: 3px dashed rgba(45,212,191,.55); border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    font-size: 28px; position: relative; }
+  #drop svg { width: 56px; height: 56px; }
+  #dropFile { position: absolute; display: flex; align-items: center; gap: 16px; background: #262626;
+    border: 1px solid rgba(255,255,255,.18); border-radius: 14px; padding: 18px 26px; font-size: 28px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.5); }
+  #dropFile .xl { width: 44px; height: 52px; border-radius: 6px; background: #15803d; color: #fff; font-size: 16px;
+    font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  #dateRow { margin-top: 30px; display: flex; align-items: flex-end; gap: 30px; }
+  #dateRow .lbl { font-size: 24px; font-weight: 600; margin-bottom: 10px; }
+  #dateRow .inp { width: 320px; height: 64px; border: 1px solid rgba(255,255,255,.15); border-radius: 12px;
+    font-size: 26px; display: flex; align-items: center; padding: 0 20px; }
+  #runBtn { margin-top: 30px; height: 76px; border-radius: 12px; background: var(--teal); color: #fff;
+    font-size: 30px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  #cursor { position: absolute; width: 44px; height: 44px; left: 0; top: 0; opacity: 0; z-index: 10; }
+  #ripple { position: absolute; width: 120px; height: 120px; border-radius: 50%; border: 4px solid rgba(255,255,255,.8);
+    opacity: 0; z-index: 9; }
+  #uploadCap { position: absolute; left: 130px; top: 470px; width: 680px; }
+  #uploadCap .big { font-size: 76px; font-weight: 800; letter-spacing: -2px; line-height: 1.06; }
+  #uploadCap .small { font-size: 36px; color: var(--muted); margin-top: 24px; line-height: 1.35; }
+
+  /* ---------- scene 3: control gate ---------- */
+  #run { position: absolute; left: 260px; top: 90px; width: 1400px; }
+  #runHead { display: flex; align-items: flex-start; justify-content: space-between; }
+  #runHead .fn { font-size: 52px; font-weight: 800; letter-spacing: -1px; }
+  #runHead .rd { font-size: 26px; color: var(--muted); margin-top: 8px; }
+  #badge { font-size: 30px; font-weight: 800; letter-spacing: 1px; background: var(--amber); color: #fff;
+    padding: 10px 26px; border-radius: 999px; margin-top: 8px; }
+  #tlTitle { font-size: 34px; font-weight: 700; margin-top: 46px; margin-bottom: 10px; }
+  .stage { display: flex; align-items: center; gap: 22px; height: 70px; font-size: 32px; font-weight: 600;
+    border-bottom: 1px solid rgba(255,255,255,.05); }
+  .stage .ic { width: 40px; height: 40px; flex: none; }
+  .stage .ev { font-size: 22px; color: var(--muted); font-weight: 500; }
+  #alert { margin-top: 36px; border: 1px solid rgba(248,113,113,.35); border-radius: 16px; background: rgba(127,29,29,.18);
+    padding: 26px 30px; display: flex; gap: 22px; color: #f87171; }
+  #alert .t { font-size: 32px; font-weight: 700; }
+  #alert .d { font-size: 25px; margin-top: 6px; color: #fca5a5; }
+
+  /* ---------- scene 4: exceptions ---------- */
+  #excCap { position: absolute; left: 130px; top: 0; bottom: 0; width: 640px; display: flex; flex-direction: column;
+    justify-content: center; }
+  #excCap .big { font-size: 84px; font-weight: 800; letter-spacing: -2px; line-height: 1.05; }
+  #excCap .small { font-size: 36px; color: var(--muted); margin-top: 30px; line-height: 1.35; }
+  #excCol { position: absolute; left: 860px; top: 0; width: 960px; height: 1080px; overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 120px, #000 960px, transparent 1080px); }
+  #excList { position: absolute; left: 0; right: 0; top: 0; }
+  #excHead { font-size: 36px; font-weight: 700; height: 90px; display: flex; align-items: center; }
+  .exc { border: 1px solid var(--border); border-radius: 16px; background: var(--card); padding: 24px 28px;
+    margin-bottom: 18px; display: flex; gap: 20px; }
+  .exc .rc { flex: none; font-size: 20px; font-weight: 700; padding: 4px 12px; border-radius: 999px; height: 34px;
+    margin-top: 2px; }
+  .exc .rc.err { background: var(--destructive-solid); color: #fff; }
+  .exc .rc.warn { background: #262626; color: var(--fg); }
+  .exc .cat { font-size: 28px; font-weight: 600; }
+  .exc .cat .mono { font-size: 19px; color: var(--muted); font-weight: 400; margin-left: 12px; }
+  .exc .msg { font-size: 22px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+
+  /* ---------- scene 5: AI ---------- */
+  #aiCap { position: absolute; left: 0; right: 0; top: 110px; text-align: center; font-size: 76px; font-weight: 800;
+    letter-spacing: -2px; line-height: 1.12; }
+  #aiCap .l2 { color: var(--primary); }
+  #aiCard { position: absolute; left: 260px; top: 420px; width: 1400px; border: 1px solid rgba(45,212,191,.22);
+    border-radius: 22px; background: linear-gradient(135deg, #171717, #13201f); padding: 40px 46px; }
+  #aiTop { display: flex; align-items: center; gap: 16px; }
+  #aiTop .ttl { font-size: 32px; font-weight: 700; }
+  #aiTop .src { margin-left: auto; font-size: 22px; font-weight: 600; background: #262626; padding: 8px 18px;
+    border-radius: 999px; }
+  #aiText { font-size: 32px; line-height: 1.6; margin-top: 26px; color: rgba(250,250,250,.92); min-height: 260px; }
+  #aiText .num { border-radius: 6px; padding: 0 4px; white-space: nowrap; }
+  #aiText .caret { display: inline-block; width: 3px; height: 34px; background: var(--primary); vertical-align: -6px; margin-left: 2px; }
+  #guard { position: absolute; left: 260px; top: 905px; font-size: 26px; color: var(--muted); display: flex; gap: 14px;
+    align-items: center; }
+  #guard b { color: var(--fg); font-weight: 600; }
+  #guard .mono { color: var(--primary); font-size: 24px; }
+
+  /* ---------- scene 6: outro ---------- */
+  #outBrand { position: absolute; left: 0; right: 0; top: 200px; display: flex; flex-direction: column; align-items: center; }
+  #outBrand .row { display: flex; align-items: center; gap: 30px; }
+  #outBrand img { width: 132px; height: 132px; }
+  #outBrand .name { font-size: 100px; font-weight: 800; letter-spacing: -3px; }
+  #outBrand .tag { font-size: 38px; color: var(--muted); margin-top: 26px; }
+  #stats { position: absolute; left: 260px; top: 560px; width: 1400px; display: grid; grid-template-columns: 1fr 1fr 1fr 1.6fr;
+    border: 1px solid var(--border); border-radius: 22px; background: var(--card); padding: 38px 46px; }
+  #stats .k { font-size: 26px; color: var(--muted); }
+  #stats .v { font-size: 56px; font-weight: 800; margin-top: 6px; letter-spacing: -1px; }
+  #url { position: absolute; left: 0; right: 0; top: 860px; text-align: center; font-size: 36px; }
+  #url .mono { color: var(--primary); font-size: 34px; }
+  #url .stack { display: block; font-size: 26px; color: var(--muted); margin-top: 14px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="glow"></div>
+  <div id="dots"></div>
+
+  <!-- 1 hook -->
+  <div class="scene" id="s1">
+    <div id="grid"></div>
+    <div id="hookShade"></div>
+    <div id="hookText">
+      <div class="l" id="h1">36 invoices.</div>
+      <div class="l l2" id="h2">17 problems hiding inside.</div>
+    </div>
+  </div>
+
+  <!-- 2 reveal + upload -->
+  <div class="scene" id="s2">
+    <div id="brand">
+      <img src="../../../frontend/public/logo.svg" alt="">
+      <div>
+        <div class="name">Collections Workflow</div>
+      </div>
+    </div>
+    <div id="uploadCard">
+      <h3>Upload a workbook</h3>
+      <div class="hint">Customers, Invoices, Payments, Region_Mapping. Processing runs immediately.</div>
+      <div id="drop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fafafa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="m8 17 4-4 4 4"/></svg>
+        <div id="dropLabel">Click to choose a file, or drag one in</div>
+      </div>
+      <div id="dateRow">
+        <div><div class="lbl">Report date</div><div class="inp">31-07-2026</div></div>
+      </div>
+      <div id="runBtn">Run</div>
+    </div>
+    <div id="dropFile"><div class="xl">XLSX</div><div>candidate_assessment_dataset.xlsx</div></div>
+    <div id="uploadCap"><div class="big" id="uc1">Upload an ERP export.</div><div class="small" id="uc2">Get the overdue position, and every problem in it.</div></div>
+  </div>
+
+  <!-- 3 control gate -->
+  <div class="scene" id="s3">
+    <div id="run">
+      <div id="runHead">
+        <div>
+          <div class="fn">candidate_assessment_dataset.xlsx</div>
+          <div class="rd">Report date 2026-07-31</div>
+        </div>
+        <div id="badge">BLOCKED</div>
+      </div>
+      <div id="tlTitle">Timeline</div>
+      <div id="stages"></div>
+      <div id="alert">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <div>
+          <div class="t">Blocked — exception rate 47.2% exceeds the 5.0% control threshold</div>
+          <div class="d">17 exceptions found, 14 distinct invoices affected (38.9% of invoices).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 exceptions -->
+  <div class="scene" id="s4">
+    <div id="excCap">
+      <div class="big" id="ec1">Nothing silently dropped.</div>
+      <div class="small" id="ec2">Every excluded row gets a rule code, a cause, and a suggested fix.</div>
+    </div>
+    <div id="excCol"><div id="excList"><div id="excHead">Exceptions (17)</div></div></div>
+  </div>
+
+  <!-- 5 AI -->
+  <div class="scene" id="s5">
+    <div id="aiCap"><div id="ai1">The AI writes the words.</div><div class="l2" id="ai2">Python does the math.</div></div>
+    <div id="aiCard">
+      <div id="aiTop">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>
+        <div class="ttl">AI Analysis</div>
+        <div class="src">Local LLM (Ollama, phi4-mini)</div>
+      </div>
+      <div id="aiText"></div>
+    </div>
+    <div id="guard"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <b>Every number checked against the computed figures</b><span class="mono">ai/guard.py</span></div>
+  </div>
+
+  <!-- 6 outro -->
+  <div class="scene" id="s6">
+    <div id="outBrand">
+      <div class="row"><img src="../../../frontend/public/logo.svg" alt=""><div class="name">Collections Workflow</div></div>
+      <div class="tag">An overdue report that won’t hide the bad rows.</div>
+    </div>
+    <div id="stats">
+      <div><div class="k">Customers</div><div class="v">25</div></div>
+      <div><div class="k">Invoices</div><div class="v">36</div></div>
+      <div><div class="k">Overdue</div><div class="v">15</div></div>
+      <div><div class="k">Outstanding</div><div class="v">Rs 12,02,000.00</div></div>
+    </div>
+    <div id="url"><span class="mono">github.com/withrvr/collections-workflow</span>
+      <span class="stack">FastAPI · Postgres · React · local LLM · 168 tests</span></div>
+  </div>
+
+  <svg id="cursor" viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L12.5 22 L15.5 20.5 L12 14 L19 14 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>
+  <div id="ripple"></div>
+</div>
+
+<script>
+// ---------- data (all from dataset_a_original.xlsx / the app's real output) ----------
+const INVOICES = [["INV-1001","C001","125000"],["INV-1002","C002","210000"],["INV-1003","C003","98000"],["INV-1004","C004","145000"],["INV-1005","C005","76000"],["INV-1006","C006","255000"],["INV-1007","C007","88000"],["INV-1008","C008","132000"],["INV-1009","C009","119000"],["INV-1010","C010","97000"],["INV-1011","C011","310000"],["INV-1012","C012","185000"],["INV-1013","C013","142000"],["INV-1014","C014","160000"],["INV-1015","C015","245000"],["INV-1016","C016","111000"],["INV-1017","C017","134000"],["INV-1018","C018","178000"],["INV-1019","C019","89000"],["INV-1020","C020","205000"],["INV-1021","C021","67000"],["INV-1022","C022","82000"],["INV-1023","C023","156000"],["INV-1024","C024","124000"],["INV-1025","C025","93000"],["INV-1026","C999","70000"],["INV-1027","C006","116000"],["INV-1028","C007","-45000"],["INV-1029","C008","105000"],["INV-1030","C009","65000"],["INV-1031","C011","75000"],["INV-1032","C002","52000"],["INV-1033","C014","61000"],["INV-1034","C018","72000"],["INV-1035","C019","64000"],["INV-1036","C020","91000"]];
+// invoice -> rule codes that fire on it (order of flashing)
+const FLAGS = [["INV-1027","E001"],["INV-1011","E013"],["INV-1028","E004"],["INV-1002","E007"],["INV-1032","E009"],["INV-1029","E011"],["INV-1023","E005"],["INV-1007","E014"],["INV-1030","E012"],["INV-1026","E002"],["INV-1004","E010"],["INV-1031","E013"],["INV-1025","E005"]];
+const EXC = [
+  ["E001","err","Missing due date","INV-1027","Invoice INV-1027 has no Due Date, so it cannot be classified overdue or current. Excluded from the overdue report."],
+  ["E004","err","Non-positive invoice amount","INV-1028","Invoice INV-1028 has a non-positive amount (-45000). Excluded from the overdue report."],
+  ["E007","err","Payment-to-invoice customer mismatch","INV-1002","Payment PAY-2026 is recorded against customer C003, but the invoice it pays (INV-1002) belongs to customer C002."],
+  ["E011","warn","Cancelled invoice","INV-1029","Invoice INV-1029 is Cancelled. Excluded from the overdue report; shown here so nothing silently disappears."],
+  ["E003","err","Unknown invoice reference","INV-9999","Payment PAY-2025 references Invoice_ID 'INV-9999', which is not in the Invoices sheet. The payment cannot be applied to anything."],
+  ["E014","warn","Overpayment","INV-1007","Invoice INV-1007 has valid payments totalling 110000, exceeding its amount of 88000 by 22000."],
+  ["E009","warn","Payment after report date","INV-1032","Payment PAY-2020 (2026-08-02) is dated after the report date (2026-07-31). It does not reduce invoice INV-1032's position."],
+];
+const STAGES = ["Load workbook","Validate & explain exceptions","Calculate outstanding & overdue","Control gate","Summarise","Persist results"];
+const EVENTS = ["2 events","3 events","2 events","2 events","1 event","1 event"];
+const NARR = [
+  ["The collections run conducted on ",0],["2026-07-31",1],[" reveals a total outstanding amount of ",0],["Rs 1,202,000.00",1],
+  [" across ",0],["25",1],[" customers and ",0],["36",1],[" invoices processed. The West region carries the most significant risk with outstanding invoices amounting to ",0],
+  ["Rs 472,000.00",1],[".",0]
+];
+
+// ---------- build static DOM ----------
+const fmt = n => Number(n).toLocaleString("en-IN");
+const grid = document.getElementById("grid");
+INVOICES.forEach(([id,c,a]) => {
+  const d = document.createElement("div"); d.className = "tile"; d.dataset.id = id;
+  d.innerHTML = `<div class="wash"></div><div class="id">${id}</div><div class="meta">${c} · Rs ${fmt(a)}</div><div class="code"></div>`;
+  grid.appendChild(d);
+});
+const tiles = {}; grid.querySelectorAll(".tile").forEach(t => tiles[t.dataset.id] = t);
+const stagesEl = document.getElementById("stages");
+const ICON_OK = `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`;
+const ICON_WARN = `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`;
+STAGES.forEach((s,i) => {
+  const d = document.createElement("div"); d.className = "stage";
+  d.innerHTML = (i===3?ICON_WARN:ICON_OK) + `<span>${s}</span><span class="ev">${EVENTS[i]}</span>`;
+  stagesEl.appendChild(d);
+});
+const excList = document.getElementById("excList");
+EXC.forEach(([rc,sev,cat,id,msg]) => {
+  const d = document.createElement("div"); d.className = "exc";
+  d.innerHTML = `<div class="rc ${sev}">${rc}</div><div><div class="cat">${cat}<span class="mono">${id}</span></div><div class="msg">${msg}</div></div>`;
+  excList.appendChild(d);
+});
+const NARR_LEN = NARR.reduce((n,[s]) => n + s.length, 0);
+
+// ---------- helpers ----------
+const clamp = (x,a=0,b=1) => Math.min(b, Math.max(a, x));
+const P = (t,a,b) => clamp((t-a)/(b-a));
+const eo = x => 1 - Math.pow(1-x, 3);
+const eio = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x+2, 3)/2;
+const back = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3*Math.pow(x-1,3) + c1*Math.pow(x-1,2); };
+const lerp = (a,b,x) => a + (b-a)*x;
+const $ = id => document.getElementById(id);
+// a scene is visible in [a, b], fades in over 0.35s, out over the last 0.3s (dip through background)
+function sceneAlpha(t,a,b) { return Math.min(eo(P(t,a,a+.35)), 1 - eio(P(t,b-.3,b))); }
+function rise(el, x, dy=40) { el.style.opacity = x; el.style.transform = `translateY(${(1-x)*dy}px)`; }
+
+const SC = [[0,3.0],[3.0,7.0],[7.0,12.4],[12.4,16.2],[16.2,19.6],[19.6,23.0]];
+const DURATION = 23.0;
+
+function render(t) {
+  // background drift
+  $("glow").style.transform = `translate(${-800 + 960 + Math.sin(t*.35)*260}px, ${-800 + 540 + Math.cos(t*.27)*140}px)`;
+  $("dots").style.transform = `translate(${(t*6)%40}px, ${(t*3)%40}px)`;
+
+  SC.forEach(([a,b],i) => {
+    const el = $("s"+(i+1)); const al = (i===0) ? Math.min(1, 1 - eio(P(t,b-.3,b))) : sceneAlpha(t,a,b);
+    el.style.opacity = al; el.style.visibility = al > 0.001 ? "visible" : "hidden";
+  });
+
+  // ---- 1 hook ----
+  {
+    const g = $("grid");
+    g.style.transform = `translate(-50%,-50%) scale(${lerp(1.08, 1.0, eo(P(t,0,3)))})`;
+    Object.values(tiles).forEach((el, i) => {
+      const r = Math.floor(i/6), c = i%6;
+      const x = eo(P(t, 0.0 + (r+c)*0.05, 0.45 + (r+c)*0.05));
+      el.style.opacity = x * .9; el.style.transform = `translateY(${(1-x)*30}px)`;
+    });
+    FLAGS.forEach(([id,code],k) => {
+      const tl = tiles[id]; const st = 0.9 + k*0.08; const x = eo(P(t, st, st+.18));
+      tl.querySelector(".wash").style.opacity = x;
+      const cd = tl.querySelector(".code"); cd.textContent = code; cd.style.opacity = x;
+      cd.style.transform = `scale(${lerp(.6,1,back(P(t,st,st+.25)))})`;
+    });
+    rise($("h1"), eo(P(t,0.15,0.55)));
+    rise($("h2"), eo(P(t,0.95,1.35)));
+  }
+
+  // ---- 2 reveal + upload ----
+  {
+    const b = $("brand"), card = $("uploadCard"), drop = $("drop"), btn = $("runBtn"), f = $("dropFile");
+    // centered brand, then glide to the top-left as the card comes in
+    const m = eio(P(t,4.0,4.7));
+    const bw = b.offsetWidth, sc = lerp(1, .62, m);
+    b.style.left = lerp(960 - bw/2, 130, m)+"px"; b.style.top = (lerp(540, 330, m) - 60)+"px";
+    b.style.transform = `scale(${sc})`;
+    b.style.opacity = eo(P(t,3.05,3.5));
+    const ci = eo(P(t,4.3,4.9));
+    card.style.opacity = ci; card.style.transform = `translateY(${(1-ci)*60}px)`;
+    rise($("uc1"), eo(P(t,4.45,4.85)), 30);
+    rise($("uc2"), eo(P(t,4.7,5.1)), 30);
+    // layout targets (offsets ignore transforms, so they are stable)
+    const dcx = card.offsetLeft + drop.offsetLeft + drop.offsetWidth/2, dcy = card.offsetTop + drop.offsetTop + drop.offsetHeight/2;
+    const rcx = card.offsetLeft + btn.offsetLeft + btn.offsetWidth/2, rcy = card.offsetTop + btn.offsetTop + btn.offsetHeight/2;
+    // the file drags in from the bottom-right into the drop zone
+    const fd = eio(P(t,4.9,5.6)), landed = t >= 5.6;
+    const tx = dcx - f.offsetWidth/2, ty = dcy - f.offsetHeight/2 + 40;
+    const fx = lerp(1500, tx, fd), fy = lerp(1000, ty, fd);
+    f.style.left = fx+"px"; f.style.top = fy+"px";
+    f.style.opacity = eo(P(t,4.8,5.0));
+    f.style.transform = `scale(${landed ? lerp(1.04,1,eo(P(t,5.6,5.8))) : 1.04}) rotate(${lerp(-4,0,fd)}deg)`;
+    $("dropLabel").style.opacity = landed ? 0 : 1;
+    const hot = t>5.2 && t<5.7;
+    drop.style.borderColor = hot ? "rgba(45,212,191,1)" : "rgba(45,212,191,.55)";
+    drop.style.background = hot ? "rgba(13,148,136,.10)" : "transparent";
+    // the cursor carries the file, then moves to Run and clicks
+    const cur = $("cursor");
+    const hx = f.offsetWidth*.62, hy = f.offsetHeight*.55;
+    let px, py;
+    if (t < 5.7) { px = fx + hx; py = fy + hy; }
+    else { const k = eio(P(t,5.75,6.3)); px = lerp(tx + hx, rcx, k); py = lerp(ty + hy, rcy, k); }
+    cur.style.opacity = (t>4.8 && t<7.0) ? sceneAlpha(t,3.0,7.0) : 0;
+    const press = (t>6.3 && t<6.45) ? .85 : 1;
+    cur.style.transform = `translate(${px}px, ${py}px) scale(${press})`;
+    const rp = P(t,6.32,6.8), rip = $("ripple");
+    rip.style.opacity = (t>6.32 && t<6.8) ? (1-rp)*.8 : 0;
+    rip.style.transform = `translate(${rcx-60}px, ${rcy-60}px) scale(${lerp(.2,1.3,eo(rp))})`;
+    btn.style.filter = (t>6.3 && t<6.5) ? "brightness(1.25)" : "none";
+    btn.textContent = t > 6.45 ? "Running…" : "Run";
+  }
+
+  // ---- 3 control gate ----
+  {
+    rise($("runHead"), eo(P(t,7.1,7.5)), 30);
+    rise($("tlTitle"), eo(P(t,7.25,7.6)), 30);
+    [...$("stages").children].forEach((el,i) => {
+      const st = 7.55 + i*0.32; const x = eo(P(t,st,st+.28));
+      el.style.opacity = x; el.style.transform = `translateX(${(1-x)*-40}px)`;
+      const ic = el.querySelector(".ic"); ic.style.transform = `scale(${lerp(.3,1,back(P(t,st+.06,st+.34)))})`;
+    });
+    const bd = $("badge"); const bx = P(t,9.5,9.75);
+    bd.style.opacity = t > 9.5 ? 1 : 0;
+    bd.style.transform = `scale(${t>9.5 ? lerp(2.4,1,eo(bx)) : 2.4}) rotate(${lerp(-8,0,eo(bx))}deg)`;
+    const al = eo(P(t,9.75,10.2)); $("alert").style.opacity = al; $("alert").style.transform = `translateY(${(1-al)*30}px)`;
+    // a short shake on the stamp
+    const sh = (t>9.72 && t<9.95) ? Math.sin((t-9.72)*90)*(1-P(t,9.72,9.95))*6 : 0;
+    $("run").style.transform = `translateX(${sh}px)`;
+  }
+
+  // ---- 4 exceptions ----
+  {
+    rise($("ec1"), eo(P(t,12.55,12.95)));
+    rise($("ec2"), eo(P(t,13.0,13.4)));
+    const cards = [...excList.querySelectorAll(".exc")];
+    rise($("excHead"), eo(P(t,12.5,12.85)), 30);
+    cards.forEach((el,i) => {
+      const st = 12.65 + i*0.22; const x = eo(P(t,st,st+.35));
+      el.style.opacity = x; el.style.transform = `translateX(${(1-x)*80}px)`;
+    });
+    const scroll = eio(P(t,13.6,16.2)) * 420;
+    excList.style.transform = `translateY(${110 - scroll}px)`;
+  }
+
+  // ---- 5 AI ----
+  {
+    rise($("ai1"), eo(P(t,16.3,16.7)));
+    rise($("ai2"), eo(P(t,16.65,17.05)));
+    const ci = eo(P(t,16.35,16.8)); $("aiCard").style.opacity = ci; $("aiCard").style.transform = `translateY(${(1-ci)*50}px)`;
+    let budget = Math.floor(P(t,16.6,18.7) * NARR_LEN);
+    let html = "";
+    for (const [s,hl] of NARR) {
+      if (budget <= 0) break;
+      const part = s.slice(0, budget); budget -= part.length;
+      if (hl) {
+        const done = part.length === s.length;
+        html += `<span class="num" style="background:${done ? "rgba(13,148,136,.32)" : "transparent"};">${part}</span>`;
+      } else html += part;
+    }
+    if (t < 18.9) html += `<span class="caret" style="opacity:${Math.floor(t*4)%2 ? 1 : .2}"></span>`;
+    $("aiText").innerHTML = html;
+    rise($("guard"), eo(P(t,18.6,19.0)), 20);
+  }
+
+  // ---- 6 outro ----
+  {
+    rise($("outBrand"), eo(P(t,19.75,20.2)), 40);
+    const stats = $("stats"); const s = eo(P(t,20.1,20.55));
+    stats.style.opacity = s; stats.style.transform = `translateY(${(1-s)*40}px)`;
+    [...stats.children].forEach((el,i) => { const x = eo(P(t,20.2+i*.12,20.5+i*.12)); el.style.opacity = x; });
+    rise($("url"), eo(P(t,20.7,21.1)), 20);
+  }
+}
+window.render = render; window.DURATION = DURATION;
+render(Number(new URLSearchParams(location.search).get("t") || 0));
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+36 invoices, 17 data problems, and a collections report that refuses to call itself clean at a 47.2% exception rate. Collections Workflow turns an ERP export into an overdue position, explains every row it leaves out, and uses a local LLM that narrates but never touches a number: github.com/withrvr/collections-workflow

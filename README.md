@@ -8,6 +8,12 @@ quality/exception report, with nothing silently dropped along the way.
 Backend: FastAPI + SQLModel + Postgres. Frontend: React + TanStack
 Router. Docker Compose for local dev.
 
+## Launch video
+
+[![Collections Workflow launch video: 36 invoices, 17 problems, and a run that blocks itself](docs/brag/brag.jpg)](docs/brag/brag.mp4)
+
+*23 seconds, sound on. Click the poster to play.* The video uses the sample workbook's real numbers and output. To re-render it, see [`docs/brag/`](docs/brag/README.md).
+
 ## Screenshots
 
 **Dashboard** — run totals, outcome/outstanding charts, recent runs, one click into upload or history.

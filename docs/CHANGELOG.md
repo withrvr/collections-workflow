@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A 23-second launch video (`docs/brag/brag.mp4`, made with `/brag`),
+  embedded at the top of the README. Its renderable source is in
+  `docs/brag/source/`.
 - Per-run file storage: every upload is kept on disk
   (`/tmp/collections-uploads/`) and downloadable via
   `GET /collections/runs/{id}/download`; `RunOut.has_download` and a
