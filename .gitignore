@@ -7,3 +7,6 @@ backend/app/frontend/
 /blob-report/
 /playwright/.cache/
 test-files/
+
+# /brag working output (deliverables are copied to docs/brag/)
+brag-output/
