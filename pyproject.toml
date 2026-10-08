@@ -30,6 +30,8 @@ extend-ignore-re = [
     "@[a-zA-Z0-9](?:-?[a-zA-Z0-9])*",
     # Name of the package in the PR title
     "Bump certifi ",
+    # Alembic revision IDs (12 hex chars), e.g. in docs/CHANGELOG.md
+    "\\b[0-9a-f]{12}\\b",
 ]
 
 [tool.typos.default.extend-identifiers]
